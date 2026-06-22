@@ -18,15 +18,10 @@ function getAI() {
   if (!aiInstance) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY environment variable is not configured. Please set your Gemini key in the Secrets panel.");
+      throw new Error("GEMINI_API_KEY environment variable is not configured. Please set GEMINI_API_KEY in your .env file.");
     }
     aiInstance = new GoogleGenAI({
       apiKey: apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
     });
   }
   return aiInstance;
