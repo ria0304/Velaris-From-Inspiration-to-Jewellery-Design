@@ -4,7 +4,7 @@
 
 [![GitHub](https://img.shields.io/badge/GitHub-Velaris-black?style=flat-square&logo=github)](https://github.com/ria0304/Velaris-From-Inspiration-to-Jewellery-Design)
 
-JewelDraft AI is an AI-powered jewellery design tool that transforms natural language descriptions, sketches, or inspiration images into professional design concepts and manufacturer-ready briefs.
+VELARIS  AI is an AI-powered jewellery design tool that transforms natural language descriptions, sketches, or inspiration images into professional design concepts and manufacturer-ready briefs.
 
 ---
 
@@ -20,7 +20,7 @@ Custom jewellery design is slow, expensive, and built on miscommunication.
 
 ## The Solution
 
-JewelDraft AI bridges the gap between a customer's idea and a jeweller's workflow.
+VELARIS AI bridges the gap between a customer's idea and a jeweller's workflow.
 
 A user inputs their idea in one of three ways:
 
