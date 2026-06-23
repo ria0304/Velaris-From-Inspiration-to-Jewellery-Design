@@ -45,6 +45,8 @@ async def export_design_pdf(request: PDFExportRequest):
     - Cost breakdown
     - Manufacturing details
     - Design narrative
+    
+    The PDF will be named after the design (e.g., "Aurum_Bloom.pdf")
     """
     try:
         # Get the saved design from storage
@@ -55,14 +57,15 @@ async def export_design_pdf(request: PDFExportRequest):
                 detail=f"Design with ID '{request.design_id}' not found"
             )
         
-        # Generate PDF
-        pdf_base64 = generate_design_pdf(design)
+        # Generate PDF - returns (pdf_base64, filename)
+        pdf_base64, filename = generate_design_pdf(design)
         
         return PDFExportResponse(
             success=True,
             pdf_base64=pdf_base64,
             message="PDF generated successfully",
-            design_name=design.get('name', 'Untitled')
+            design_name=design.get('name', 'Untitled'),
+            filename=filename
         )
         
     except HTTPException:
