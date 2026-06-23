@@ -2,6 +2,7 @@
 
 import io
 import base64
+import re
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
@@ -22,10 +23,10 @@ VELARIS_TEXT = HexColor('#2C2C2C')
 VELARIS_GREY = HexColor('#888888')
 
 
-def generate_design_pdf(design_data: dict) -> str:
+def generate_design_pdf(design_data: dict) -> tuple[str, str]:
     """
     Generate a comprehensive PDF with all design views and specifications.
-    Returns base64 encoded PDF.
+    Returns: (base64_encoded_pdf, filename)
     """
     buffer = io.BytesIO()
     
@@ -108,6 +109,10 @@ def generate_design_pdf(design_data: dict) -> str:
         fontName='Helvetica-Bold'
     )
     
+    # === Get design name for filename ===
+    design_name = design_data.get('name', 'Untitled-Design')
+    filename = sanitize_filename(design_name)
+    
     # === HEADER ===
     story.append(Paragraph("VELARIS", title_style))
     story.append(Paragraph("From Inspiration to Jewellery Design", subtitle_style))
@@ -118,7 +123,7 @@ def generate_design_pdf(design_data: dict) -> str:
     story.append(Spacer(1, 0.2*inch))
     
     # === DESIGN NAME & DATE ===
-    story.append(Paragraph(design_data.get('name', 'Untitled Design'), 
+    story.append(Paragraph(design_name, 
                           ParagraphStyle('DesignName', parent=section_style, fontSize=22)))
     
     timestamp = design_data.get('timestamp', datetime.now().strftime("%B %d, %Y"))
@@ -296,7 +301,7 @@ def generate_design_pdf(design_data: dict) -> str:
     pdf_data = buffer.getvalue()
     buffer.close()
     
-    return base64.b64encode(pdf_data).decode('utf-8')
+    return base64.b64encode(pdf_data).decode('utf-8'), filename
 
 
 def create_view_placeholder(title: str, description: str) -> Drawing:
@@ -357,3 +362,23 @@ def create_complexity_bar(score: int) -> Drawing:
     drawing.add(label)
     
     return drawing
+
+
+def sanitize_filename(name: str) -> str:
+    """
+    Sanitize a design name to create a safe filename.
+    Example: "Aurum Bloom" -> "Aurum_Bloom.pdf"
+    """
+    # Remove any characters that aren't alphanumeric, spaces, or hyphens
+    clean = re.sub(r'[^a-zA-Z0-9\s\-]', '', name)
+    # Replace spaces with underscores
+    clean = clean.replace(' ', '_')
+    # Remove multiple underscores
+    clean = re.sub(r'_+', '_', clean)
+    # Trim leading/trailing underscores and whitespace
+    clean = clean.strip('_')
+    # If empty, use default
+    if not clean:
+        clean = 'Velaris_Design'
+    # Add .pdf extension
+    return f"{clean}.pdf"
