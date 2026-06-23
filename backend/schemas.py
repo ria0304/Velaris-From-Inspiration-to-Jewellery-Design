@@ -163,3 +163,7 @@ class PDFExportResponse(BaseModel):
     pdf_base64: str
     message: str
     design_name: Optional[str] = None
+    filename: Optional[str] = Field(
+        default=None, 
+        description="Suggested filename for the PDF (e.g., 'Aurum_Bloom.pdf')"
+    )
