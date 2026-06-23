@@ -3,7 +3,9 @@ design flow, now routed through the OpenRouter fallback chain instead of
 a single hardcoded provider."""
 
 import random
+import re
 from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import ValidationError
@@ -24,31 +26,124 @@ router = APIRouter()
 SYSTEM_INSTRUCTION = (
     "You are Velaris AI, a master bespoke jewelry designer, gemologist, and designer. "
     "Your task is to take customer inputs (ideas, sketch drawings, or photos of inspirational designs) and draft a masterfully designed, luxury piece of jewelry.\n\n"
+    
+    "🚨 CRITICAL RULE #1: EXACTLY MATCH THE USER'S REQUESTED JEWELRY TYPE 🚨\n"
+    "  - If the user mentions 'brooch' → output a BROOCH\n"
+    "  - If the user mentions 'ring' → output a RING\n"
+    "  - If the user mentions 'necklace' → output a NECKLACE\n"
+    "  - If the user mentions 'bracelet' → output a BRACELET\n"
+    "  - If the user mentions 'earrings' → output EARRINGS\n"
+    "  - If the user mentions 'pendant' → output a PENDANT\n"
+    "  - If the user mentions 'tiara' or 'crown' → output a TIARA\n"
+    "  - NEVER change the jewelry type. If the user wants a BROOCH, do NOT output a RING.\n"
+    "  - The type field in your JSON MUST exactly match what the user requested.\n\n"
+    
+    "🚨 CRITICAL RULE #2: Match the budget tier 🚨\n"
+    "  - 'Value': Sterling Silver or 14K Gold, moderate gemstone (0.5-1.0 ct), secure settings. ($300-$1,000)\n"
+    "  - 'Balanced': 18K Gold, sparkling gemstones (1.0-2.0 ct), shimmering settings. ($1,000-$3,500)\n"
+    "  - 'Premium': Platinum or 18K Gold, spectacular gem sizes (2.0-4.0+ ct), intricate settings. ($4,000-$15,000+)\n\n"
+    
     "In corporate branding, remember we are 'Velaris — From Inspiration to Jewelry Design'. Keep descriptions beautiful, warm, romantic, and extremely easy for ordinary clients to understand (no complex engineering terms, no confusing technical acronyms). Focus on the beauty, shimmer, shape, and sentiment.\n\n"
-    "CRITICAL: Tailor pricing, materials, and stone size to the selected budget tier:\n"
-    "- 'Value': Select lovely, friendly materials like Sterling Silver or 14K Gold, moderate gemstone (0.5-1.0 ct), secure settings (Prong, Bezel). Total price should be lower ($300 to $1,000).\n"
-    "- 'Balanced': Select luxurious 18K Gold, sparkling diamonds, sapphire, or moissanite (1.0-2.0 ct), shimmering settings (Halo, Cathedral). Total price should be mid-range ($1,000 to $3,500).\n"
-    "- 'Premium': Select Platinum or 18K Gold, spectacular gem sizes (2.0-4.0+ ct), intricate settings, elegant galleries. Total price should be upper range ($4,000 to $15,000+).\n\n"
-    "Respond ONLY with JSON matching the provided schema. No prose, no markdown fences, no commentary outside the JSON object.\n\n"
-    "Provide clear, friendly feedback for Casting, Setting, and Polishing, as well as distinct warm instructions for multi-perspective views (Front View, Side View, Perspective View)."
+    
+    "Adhere strictly to standard enum options:\n"
+    "  - Type: Ring, Earrings, Necklace, Bracelet, Brooch, Pendant, Tiara\n"
+    "  - Metal: 18K Yellow Gold, 18K White Gold, 18K Rose Gold, Platinum, 14K Yellow Gold, Sterling Silver\n"
+    "  - Gemstone: Diamond, Emerald, Sapphire, Ruby, Garnet, Moissanite, Aquamarine, Opal, Amethyst, Pearl, Morganite\n"
+    "  - Gemstone Cut: Round, Oval, Emerald-Cut, Pear, Cushion, Princess, Marquise\n"
+    "  - Setting Type: Prong, Bezel, Halo, Pavé, Channel, Tension, Cathedral\n"
+    "  - Occasion: Engagement, Wedding, Anniversary, Birthday, Graduation, Self-Gift\n\n"
+    
+    "Provide clear, friendly feedback for Casting, Setting, and Polishing, as well as distinct warm instructions for multi-perspective views (Front View, Side View, Perspective View).\n\n"
+    
+    "Respond ONLY with JSON matching the provided schema. No prose, no markdown fences, no commentary outside the JSON object."
 )
 
 
+def extract_design_type(prompt: str) -> str:
+    """
+    Extract the design type from the user's prompt.
+    Returns the type in proper case.
+    """
+    prompt_lower = prompt.lower()
+    
+    # Check for specific design types (ordered by specificity)
+    if "brooch" in prompt_lower:
+        return "Brooch"
+    elif "necklace" in prompt_lower or "chain" in prompt_lower:
+        return "Necklace"
+    elif "bracelet" in prompt_lower or "bangle" in prompt_lower:
+        return "Bracelet"
+    elif "earring" in prompt_lower or "ear ring" in prompt_lower or "stud" in prompt_lower:
+        return "Earrings"
+    elif "pendant" in prompt_lower:
+        return "Pendant"
+    elif "tiara" in prompt_lower or "crown" in prompt_lower:
+        return "Tiara"
+    elif "ring" in prompt_lower:
+        return "Ring"
+    else:
+        # Default to Ring if no type is specified
+        return "Ring"
+
+
 def _build_prompt(req: DesignRequest) -> str:
+    """
+    Build a prompt that strongly enforces the design type.
+    """
+    # Extract the design type from the user's prompt
+    design_type = extract_design_type(req.prompt)
+    
+    # Build a type-specific emphasis
+    type_emphasis = f"""
+    🚨 IMPORTANT: The user requested a {design_type}. 
+    Your response MUST have type = "{design_type}".
+    Do NOT output any other type. 
+    If the user said "{design_type}", you MUST output "{design_type}".
+    """
+    
     if req.inputType == "text":
-        return f"Design an exquisite custom piece of jewelry with style orientation '{req.style}' and budget tier '{req.budget}' based on the user's inspiration concepts: \"{req.prompt}\"."
+        return f"""
+        DESIGN REQUEST: Create a {design_type} based on this description.
+        
+        {type_emphasis}
+        
+        User description: "{req.prompt}"
+        Style orientation: {req.style}
+        Budget tier: {req.budget}
+        
+        Create a beautiful, detailed {design_type} that matches the user's description.
+        Make sure the design is manufacturable and follows the budget constraints.
+        """
+    
     if req.inputType == "sketch":
-        return (
-            f"The user has supplied a hand-drawn rough sketch or draft doodle. Inspect the layout of this sketch carefully and refine it into an exquisite physical product.\n"
-            f"Adhere strictly to style orientation '{req.style}' and budget tier '{req.budget}'.\n"
-            f"Customer additional description thoughts: \"{req.prompt or 'Refine my sketch into an artistic piece'}\"."
-        )
+        return f"""
+        DESIGN REQUEST: Refine this sketch into a {design_type}.
+        
+        {type_emphasis}
+        
+        The user uploaded a sketch of a {design_type}.
+        User additional description: "{req.prompt or f'Refine my {design_type.lower()} sketch into an artistic piece'}"
+        Style orientation: {req.style}
+        Budget tier: {req.budget}
+        
+        Refine the sketch into a polished, manufacturable {design_type}.
+        """
+    
     if req.inputType == "photo":
-        return (
-            f"The user has uploaded an inspiration photo. Extract the core metals, gemstone cuts, and general shape of this photo.\n"
-            f"Then, adapt and transform them into a bespoke inspired original. Make sure it is not a direct copy, but rather a sophisticated reimagining following style orientation '{req.style}' and budget tier '{req.budget}'.\n"
-            f"Customer custom requests: \"{req.prompt or 'Reimagine this beautiful layout'}\"."
-        )
+        return f"""
+        DESIGN REQUEST: Reimagine this photo into a {design_type}.
+        
+        {type_emphasis}
+        
+        The user uploaded an inspiration photo for a {design_type}.
+        User custom requests: "{req.prompt or f'Reimagine this beautiful {design_type.lower()} layout'}"
+        Style orientation: {req.style}
+        Budget tier: {req.budget}
+        
+        Create an original {design_type} inspired by the photo.
+        Make sure it is not a direct copy, but a sophisticated reimagining.
+        """
+    
     raise HTTPException(status_code=400, detail=f"Unsupported inputType: {req.inputType}")
 
 
@@ -82,6 +177,27 @@ def generate_design(req: DesignRequest) -> FinalDesignPackage:
             status_code=502,
             detail=f"{model_used} returned a body that didn't match the expected schema: {exc}"
         )
+
+    # 🚨 VALIDATE: Check if the AI returned the correct design type
+    expected_type = extract_design_type(req.prompt)
+    actual_type = raw_data.type
+    
+    if expected_type != actual_type:
+        # Log the mismatch
+        print(f"⚠️ Design type mismatch: User requested '{expected_type}', AI returned '{actual_type}'")
+        print(f"⚠️ Overriding with expected type: '{expected_type}'")
+        
+        # Override with the expected type
+        # Create a new RawDesignResponse with the corrected type
+        raw_data_dict = raw_json.copy()
+        raw_data_dict['type'] = expected_type
+        try:
+            raw_data = RawDesignResponse.model_validate(raw_data_dict)
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Failed to override design type: {exc}"
+            )
 
     total_raw = raw_data.metalCost + raw_data.stoneCost + raw_data.laborCost
     markup_pct = 25
