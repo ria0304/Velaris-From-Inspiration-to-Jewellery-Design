@@ -2,10 +2,13 @@
 # Python backend entrypoint. Run with: python main.py
 # or: uvicorn main:app --reload --port 3000
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend import advisor, design, storage, trends
+from backend.pdf_generator import generate_design_pdf
+from backend.schemas import PDFExportRequest, PDFExportResponse
+from backend.storage import get_design_by_id
 
 app = FastAPI(
     title="Velaris Jewelry Design Engine",
@@ -25,6 +28,50 @@ app.include_router(design.router)
 app.include_router(advisor.router)
 app.include_router(trends.router)
 app.include_router(storage.router)
+
+
+# ---------------------------------------------------------------------------
+# PDF Export Endpoint
+# ---------------------------------------------------------------------------
+
+@app.post("/api/export-pdf", response_model=PDFExportResponse)
+async def export_design_pdf(request: PDFExportRequest):
+    """
+    Generate a comprehensive PDF for a saved design including:
+    - Front View
+    - Artistic/Perspective View  
+    - Profile/Side View
+    - Full specifications
+    - Cost breakdown
+    - Manufacturing details
+    - Design narrative
+    """
+    try:
+        # Get the saved design from storage
+        design = get_design_by_id(request.design_id)
+        if not design:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Design with ID '{request.design_id}' not found"
+            )
+        
+        # Generate PDF
+        pdf_base64 = generate_design_pdf(design)
+        
+        return PDFExportResponse(
+            success=True,
+            pdf_base64=pdf_base64,
+            message="PDF generated successfully",
+            design_name=design.get('name', 'Untitled')
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to generate PDF: {str(e)}"
+        )
 
 
 if __name__ == "__main__":
