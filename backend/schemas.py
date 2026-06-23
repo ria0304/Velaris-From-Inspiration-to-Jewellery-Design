@@ -148,3 +148,18 @@ class TrendsResponse(BaseModel):
     trendingStyles: List[GrowthStyle]
     seasonalGemstones: List[SeasonalGem]
     styleComparisons: List[StyleComparison]
+
+
+# ---------------------------------------------------------------------------
+# PDF Export
+# ---------------------------------------------------------------------------
+
+class PDFExportRequest(BaseModel):
+    design_id: str = Field(description="The ID of the design to export as PDF")
+
+
+class PDFExportResponse(BaseModel):
+    success: bool
+    pdf_base64: str
+    message: str
+    design_name: Optional[str] = None
