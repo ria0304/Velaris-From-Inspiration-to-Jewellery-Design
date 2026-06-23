@@ -3,3 +3,5 @@ uvicorn[standard]>=0.30.0
 pydantic>=2.8.0
 requests>=2.32.0
 python-dotenv>=1.0.0
+reportlab>=4.2.2
+Pillow>=10.3.0
