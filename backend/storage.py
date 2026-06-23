@@ -4,7 +4,7 @@ Lives only for the lifetime of the running process — there's no database
 here, just a session-scoped cache, matching the original behaviour."""
 
 import random
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Body
 
@@ -30,3 +30,42 @@ def save_design(design: dict = Body(...)) -> dict:
 @router.get("/api/saved-designs")
 def get_saved_designs() -> List[dict]:
     return _local_saved
+
+
+# ---------------------------------------------------------------------------
+# Storage helper functions (for use by other modules)
+# ---------------------------------------------------------------------------
+
+def get_design_by_id(design_id: str) -> Optional[dict]:
+    """
+    Retrieve a saved design by its ID.
+    Returns None if not found.
+    
+    Used by the PDF export endpoint to fetch designs.
+    """
+    for design in _local_saved:
+        if design.get("id") == design_id:
+            return design
+    return None
+
+
+def get_all_designs() -> List[dict]:
+    """Get all saved designs."""
+    return _local_saved
+
+
+def delete_design(design_id: str) -> bool:
+    """
+    Delete a design by ID.
+    Returns True if deleted, False if not found.
+    """
+    for i, design in enumerate(_local_saved):
+        if design.get("id") == design_id:
+            _local_saved.pop(i)
+            return True
+    return False
+
+
+def clear_all_designs() -> None:
+    """Clear all saved designs (useful for testing)."""
+    _local_saved.clear()
