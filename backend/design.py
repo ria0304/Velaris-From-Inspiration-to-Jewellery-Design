@@ -156,6 +156,181 @@ def _manufacturing_level(avg_complexity: int) -> str:
     return "Moderate Complexity"
 
 
+def _casting_note(metal: str, jewelry_type: str) -> str:
+    """Dynamic casting note based on metal choice and jewelry type."""
+    m = metal.lower()
+    t = jewelry_type.lower()
+
+    if "platinum" in m:
+        base = (
+            "Platinum is one of the densest, most demanding metals to cast — "
+            "it requires a high-temperature torch and specialist equipment to reach its 1,768 °C melting point. "
+            "The result is an exceptionally weighty, hypoallergenic piece that will never tarnish or fade."
+        )
+    elif "rose gold" in m:
+        base = (
+            "18K Rose Gold is alloyed with copper to achieve its warm blush tone, "
+            "which also makes it slightly harder and more scratch-resistant than yellow gold. "
+            "The casting is straightforward for an experienced goldsmith, and the copper content "
+            "gives the metal a beautiful, rosy character that deepens attractively with wear."
+        )
+    elif "white gold" in m:
+        base = (
+            "18K White Gold is alloyed with palladium or nickel and finished with a rhodium plating "
+            "that gives it a crisp, mirror-bright surface. Casting is standard, but the piece will "
+            "benefit from rhodium re-plating every few years to maintain its brilliant white lustre."
+        )
+    elif "yellow gold" in m and "14k" in m:
+        base = (
+            "14K Yellow Gold offers an ideal balance of durability and affordability. "
+            "Its lower gold content (58.3%) makes it harder and more resistant to everyday knocks "
+            "than 18K, and it casts cleanly with minimal porosity — ideal for fine detail work."
+        )
+    elif "yellow gold" in m:
+        base = (
+            "18K Yellow Gold is the classic choice of master jewellers worldwide. "
+            "At 75% pure gold it casts with exceptional fluidity, capturing fine surface detail beautifully. "
+            "It is softer than 14K, so prongs and settings should be checked annually."
+        )
+    elif "sterling silver" in m:
+        base = (
+            "Sterling Silver (92.5% pure silver) is one of the easiest metals to cast and work — "
+            "it has a low melting point, flows beautifully into moulds, and takes a mirror polish effortlessly. "
+            "It is an ideal choice for intricate sculptural work, though it will develop a natural patina over time."
+        )
+    else:
+        base = (
+            "This metal casts cleanly and holds its form well through the lost-wax casting process. "
+            "A skilled goldsmith will finish the raw casting by filing, grinding, and refining the surface "
+            "before any stone setting begins."
+        )
+
+    # Add type-specific note
+    if t in ("brooch", "pendant"):
+        base += (
+            f" For a {jewelry_type.lower()}, the casting also includes a structural pin or bail — "
+            "these load-bearing elements are cast as part of the main body and reinforced before finishing."
+        )
+    elif t == "earrings":
+        base += (
+            " Earrings are cast as a matched pair from the same pour to guarantee colour and weight consistency between the two pieces."
+        )
+    elif t == "bracelet":
+        base += (
+            " Bracelet links or panels are cast individually and assembled post-casting, "
+            "with each join soldered and inspected before the piece moves to setting."
+        )
+    elif t == "tiara":
+        base += (
+            " A tiara framework requires multiple cast sections joined with high-temperature solder — "
+            "the structural integrity of every join is critical before any stone setting begins."
+        )
+    return base
+
+
+def _setting_note(setting: str, stone: str, avg_complexity: int) -> str:
+    """Dynamic setting note based on setting type, stone, and complexity."""
+    s = setting.lower()
+    st = stone.lower()
+
+    if "pavé" in s or "pave" in s:
+        note = (
+            "Pavé setting is one of the most labour-intensive techniques in fine jewellery. "
+            "Each tiny accent stone is hand-placed into a drilled seat, then a master setter "
+            "raises tiny metal beads (or 'pavé dots') around each stone using a fine graver. "
+            "This process is repeated stone by stone across the entire surface — "
+            "expect 4–8 hours of setting time from a skilled artisan."
+        )
+    elif "channel" in s:
+        note = (
+            "Channel setting holds stones in a continuous groove cut into the metal shank. "
+            "All stones must be precisely matched in diameter before they are slid into the channel "
+            "and the metal walls are pressed inward to secure them. "
+            "It produces a clean, flush look with excellent stone protection."
+        )
+    elif "bezel" in s:
+        note = (
+            "Bezel setting wraps a thin collar of metal fully around the girdle of the stone, "
+            "securing it without any exposed prongs. It is the most protective setting style — "
+            "ideal for softer stones or active wearers — and gives the design a sleek, modern silhouette."
+        )
+    elif "tension" in s:
+        note = (
+            "Tension setting suspends the stone between two opposing metal walls using the "
+            "spring-force of the shank itself — there are no prongs or bezels. "
+            "This requires precision machining to within ±0.01 mm: too loose and the stone falls, "
+            "too tight and the stone cracks. Only experienced setters should attempt this technique."
+        )
+    elif "halo" in s:
+        note = (
+            "The halo ring of accent stones surrounds the centre gem and is set before the main stone is placed. "
+            "Each halo stone is individually prong- or micro-pavé-set, then the centre seat is verified for "
+            "level alignment before the primary stone is secured. The finished halo dramatically amplifies "
+            f"the apparent size of the {stone}."
+        )
+    elif "cathedral" in s:
+        note = (
+            "Cathedral setting arches the metal shank upward on both sides of the centre stone, "
+            "elevating it dramatically above the finger. The arched rails are shaped and refined by hand "
+            "before the stone seat is drilled and the prongs bent into position."
+        )
+    else:
+        # Prong (default)
+        note = (
+            f"Prong setting is the most classic and versatile mounting for a {stone}. "
+            "Four to six fine metal claws are cast as part of the head, then hand-bent over the "
+            "stone's girdle by the setter — allowing maximum light to reach the gem from every angle "
+            "and producing the brilliant sparkle this stone is known for."
+        )
+
+    # Complexity rider
+    if avg_complexity > 75:
+        note += (
+            " Given the high complexity score for this design, additional quality-control checkpoints "
+            "are recommended between casting, setting, and polishing to ensure no stones shift during finishing."
+        )
+    return note
+
+
+def _polishing_note(metal: str, avg_complexity: int, total_cost: int) -> str:
+    """Dynamic polishing note based on metal and design tier."""
+    m = metal.lower()
+
+    if "platinum" in m:
+        finish = (
+            "Platinum takes a deeper, more lustrous polish than gold — its natural white colour "
+            "requires no plating, so the mirror finish goes all the way through the metal. "
+            "A rotary polishing wheel with platinum-grade compound is used first, "
+            "followed by hand-burnishing of every prong tip and recessed surface."
+        )
+    elif "rose gold" in m:
+        finish = (
+            "Rose Gold polishes to a warm, satin-meets-mirror finish that flatters its blush tone beautifully. "
+            "The copper alloy can develop micro-scratches more readily than platinum, "
+            "so a final hand-buff with a chamois cloth brings out the richest surface lustre."
+        )
+    elif "sterling silver" in m:
+        finish = (
+            "Sterling Silver achieves a bright mirror polish quickly but benefits from an anti-tarnish "
+            "dip after final buffing to slow oxidation. "
+            "A light rhodium flash coat is optional but recommended for long-term brightness."
+        )
+    else:
+        finish = (
+            "Gold is polished in two stages: a machine buff removes casting texture and any tool marks, "
+            "then a hand-polishing stage with a soft mop and jeweller's rouge brings every surface "
+            "to a flawless mirror shine before the stones are set."
+        )
+
+    if total_cost > 4000 or avg_complexity > 65:
+        finish += (
+            " Given the intricacy of this design, each recessed detail, filigree element, "
+            "and prong shoulder is finished individually with a flex-shaft tool "
+            "to ensure no surface is left matte or dull."
+        )
+    return finish
+
+
 @router.post("/api/generate-design", response_model=FinalDesignPackage)
 def generate_design(req: DesignRequest) -> FinalDesignPackage:
     prompt_str = _build_prompt(req)
@@ -235,9 +410,9 @@ def generate_design(req: DesignRequest) -> FinalDesignPackage:
         manufacturing=ManufacturingSpecs(
             score=avg_complexity,
             level=_manufacturing_level(avg_complexity),
-            castingNotes="This choice of metal is sturdy, easy to shape into standard curves, and holds a beautiful polish forever without tarnishing.",
-            settingNotes="The delicate mount relies on standard prong alignments. The prongs are hand-bent over the gem sides to keep your stone absolutely safe.",
-            polishingNotes="Expertly hand-polished to a high luster finish, making every facet shimmer beautifully in standard natural sunlight."
+            castingNotes=_casting_note(raw_data.metal, raw_data.type),
+            settingNotes=_setting_note(raw_data.setting, raw_data.stone, avg_complexity),
+            polishingNotes=_polishing_note(raw_data.metal, avg_complexity, total_cost),
         ),
         multiView=raw_data.multiView,
         notes=raw_data.notes,
