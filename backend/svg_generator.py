@@ -1,6 +1,6 @@
 """POST /api/generate-svg
 Generates a bespoke jewellery SVG illustration for a given design and view
-using OpenRouter 
+using OpenRouter FREE models only — no paid API required.
 
 Free model chain (tried in order, first success wins):
   1. meta-llama/llama-4-maverick:free
@@ -24,9 +24,11 @@ router = APIRouter()
 
 # ── Free-only model chain ─────────────────────────────────────────────────────
 FREE_MODEL_CHAIN = [
-    "meta-llama/llama-4-maverick:free",
-    "google/gemma-3-27b-it:free",
-    "mistralai/mistral-7b-instruct:free",
+    "qwen/qwen3-coder:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-3-12b-it:free",
+    "mistralai/devstral-small:free",
+    "openrouter/auto",               # catch-all: OpenRouter picks best available free model
 ]
 
 # ── Color palettes (kept backend-side so frontend sends none) ─────────────────
