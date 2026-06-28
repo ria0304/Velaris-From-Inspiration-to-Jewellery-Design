@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend import advisor, design, storage, trends
+from backend.svg_generator import router as svg_router
 from backend.pdf_generator import generate_design_pdf
 from backend.schemas import PDFExportRequest, PDFExportResponse
 from backend.storage import get_design_by_id
@@ -28,6 +29,7 @@ app.include_router(design.router)
 app.include_router(advisor.router)
 app.include_router(trends.router)
 app.include_router(storage.router)
+app.include_router(svg_router)
 
 
 # ---------------------------------------------------------------------------
@@ -39,40 +41,38 @@ async def export_design_pdf(request: PDFExportRequest):
     """
     Generate a comprehensive PDF for a saved design including:
     - Front View
-    - Artistic/Perspective View  
+    - Artistic/Perspective View
     - Profile/Side View
     - Full specifications
     - Cost breakdown
     - Manufacturing details
     - Design narrative
-    
+
     The PDF will be named after the design (e.g., "Aurum_Bloom.pdf")
     """
     try:
-        # Get the saved design from storage
-        design = get_design_by_id(request.design_id)
-        if not design:
+        saved_design = get_design_by_id(request.design_id)
+        if not saved_design:
             raise HTTPException(
-                status_code=404, 
+                status_code=404,
                 detail=f"Design with ID '{request.design_id}' not found"
             )
-        
-        # Generate PDF - returns (pdf_base64, filename)
-        pdf_base64, filename = generate_design_pdf(design)
-        
+
+        pdf_base64, filename = generate_design_pdf(saved_design)
+
         return PDFExportResponse(
             success=True,
             pdf_base64=pdf_base64,
             message="PDF generated successfully",
-            design_name=design.get('name', 'Untitled'),
+            design_name=saved_design.get('name', 'Untitled'),
             filename=filename
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail=f"Failed to generate PDF: {str(e)}"
         )
 
