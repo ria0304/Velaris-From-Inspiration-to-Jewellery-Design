@@ -343,8 +343,4 @@ Velaris-From-Inspiration-to-Jewellery-Design/
 | Multi-region AWS | Add a second region for users outside Mumbai |
 | RDS Postgres | Replace SQLite for production-scale concurrent traffic |
 
----
 
-## License
-
-**Copyright © 2024 Ria S & Mitakshi Sinha** — GNU GPL v3.0
