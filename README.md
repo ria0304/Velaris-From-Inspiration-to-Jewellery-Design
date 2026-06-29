@@ -14,8 +14,6 @@
 
 VELARIS AI transforms natural language descriptions, sketches, or inspiration photos into professional design concepts, manufacturer-ready spec sheets, and exportable PDFs — powered by a multi-model AI fallback chain.
 
-> **Status:** Not yet deployed. Run locally with the instructions below.
-
 </div>
 
 ---
@@ -81,7 +79,6 @@ Exportable PDF → Jeweller
 | Persistent saved designs (SQLite, survives restarts) | ✅ |
 | Gifting advisor endpoint | ✅ |
 | Trend intelligence endpoint | ✅ |
-
 
 ---
 
@@ -158,6 +155,46 @@ flowchart TD
 - OpenRouter multi-model fallback chain: `claude-sonnet-4.5` → `gpt-4o` → `gemini-2.5-flash`
 - ReportLab for PDF generation
 - Dockerized, deployable on AWS EC2
+
+---
+
+## Project Structure
+
+```
+Velaris-From-Inspiration-to-Jewellery-Design/
+│
+├── backend/                          # All Python server-side logic
+│   ├── __init__.py                   # Package marker
+│   ├── advisor.py                    # Gifting advisor endpoint
+│   ├── config.py                     # Env vars + OpenRouter model fallback chain
+│   ├── design.py                     # Core design generation + dynamic manufacturing notes
+│   ├── json_schemas.py               # JSON schema for structured LLM output
+│   ├── openrouter_client.py          # Multi-model fallback client (Claude → GPT-4o → Gemini)
+│   ├── pdf_generator.py              # ReportLab PDF export (full spec + multiview)
+│   ├── schemas.py                    # Pydantic request/response models
+│   ├── storage.py                    # SQLite persistent store (WAL mode)
+│   └── trends.py                     # Trend intelligence endpoint
+│
+├── src/                              # React + TypeScript frontend
+│   ├── assets/
+│   │   └── images/
+│   │       └── luxury_agate_backdrop_1782161136573.jpg   # App background asset
+│   ├── components/
+│   │   └── JewelryBlueprint.tsx      # Type-aware SVG visualiser (6 types × 3 views)
+│   ├── App.tsx                       # All views: input flow, results, advisor, trends, saved designs
+│   ├── index.css                     # Global styles
+│   ├── main.tsx                      # React entry point
+│   └── types.ts                      # Shared TypeScript types
+│
+├── .env.example                      # Environment variable template
+├── .gitignore
+├── index.html                        # Vite HTML entry point
+├── main.py                           # FastAPI entry point — mounts all backend routers
+├── package.json                      # Node dependencies + Vite scripts
+├── requirements.txt                  # Python dependencies
+├── tsconfig.json                     # TypeScript compiler config
+└── vite.config.ts                    # Vite config — proxies /api/* to localhost:3000
+```
 
 ---
 
@@ -255,14 +292,14 @@ curl -X POST http://localhost:3000/api/generate-design \
 
 ---
 
-## Deployment (when ready)
+## Deployment
 
-Not yet deployed. Planned stack:
+**Planned stack:**
 - Frontend → AWS S3 + CloudFront
 - Backend → Docker on AWS EC2 (ap-south-1)
 - Database → SQLite on a mounted EBS volume (`VELARIS_DB_PATH=/app/data/velaris.db`)
 
-Docker run command (for when EC2 is set up):
+Docker run command:
 
 ```bash
 sudo docker build -t velaris-backend .
@@ -305,33 +342,6 @@ sudo docker run -d \
 
 ---
 
-## Project Structure
-
-```
-Velaris-From-Inspiration-to-Jewellery-Design/
-├── backend/
-│   ├── advisor.py            # Gifting advisor endpoint
-│   ├── config.py             # Env vars + OpenRouter model fallback chain
-│   ├── design.py             # Core design generation + dynamic manufacturing notes
-│   ├── json_schemas.py       # JSON schema for structured LLM output
-│   ├── openrouter_client.py  # Multi-model fallback client
-│   ├── pdf_generator.py      # ReportLab PDF export
-│   ├── schemas.py            # Pydantic request/response models
-│   ├── storage.py            # SQLite persistent store (WAL mode)
-│   └── trends.py             # Trend intelligence endpoint
-├── src/
-│   ├── components/
-│   │   └── JewelryBlueprint.tsx  # Type-aware SVG visualiser (6 types × 3 views)
-│   ├── views/ (in App.tsx)       # Input flow, results, advisor, trends, saved designs
-│   └── types.ts                  # Shared TypeScript types
-├── main.py                   # FastAPI entry point
-├── requirements.txt
-├── .env.example
-└── vite.config.ts
-```
-
----
-
 ## Future Scope
 
 | Feature | Why |
@@ -342,5 +352,3 @@ Velaris-From-Inspiration-to-Jewellery-Design/
 | Barcode scanner | Check if a piece fits your aesthetic before buying |
 | Multi-region AWS | Add a second region for users outside Mumbai |
 | RDS Postgres | Replace SQLite for production-scale concurrent traffic |
-
-
