@@ -1,5 +1,7 @@
+// src/components/JewelryBlueprint.tsx
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { DesignPackage } from '../types';
+import { DesignPackage, SVGGenerationRequest } from '../types';
 import { ShieldCheck, RefreshCw, Sparkles, AlertCircle } from 'lucide-react';
 
 interface BlueprintProps {
@@ -61,6 +63,11 @@ function BlueprintSkeleton({ progress }: { progress: number }) {
   );
 }
 
+// ── Helper to check if motif is animal type ──────────────────────────────────
+function isAnimalMotif(motif: any): boolean {
+  return motif?.type === 'animal';
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function JewelryBlueprint({ design }: BlueprintProps) {
   const [activeView, setActiveView] = useState<ViewKey>('perspective');
@@ -113,25 +120,29 @@ export default function JewelryBlueprint({ design }: BlueprintProps) {
     try {
       const viewDescription = design.multiView[view];
 
+      // ─── BUILD REQUEST WITH MOTIF DATA ──────────────────────────────────────
+      const requestBody: SVGGenerationRequest = {
+        design_id: design.id,
+        design_name: design.name,
+        prompt: design.prompt,
+        notes: design.notes,
+        view,
+        view_description: viewDescription,
+        jewelry_type: spec.type,
+        metal: spec.metal,
+        stone: spec.stone,
+        stone_shape: spec.shape,
+        stone_size: spec.stoneSize,
+        setting: spec.setting,
+        details: spec.details,
+        motif: design.motif || null, // ← PASS MOTIF DATA TO BACKEND
+      };
+
       const res = await fetch('/api/generate-svg', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
-        body: JSON.stringify({
-          design_id:        design.id,
-          design_name:      design.name,
-          prompt:           design.prompt,
-          notes:            design.notes,
-          view,
-          view_description: viewDescription,
-          jewelry_type:     spec.type,
-          metal:            spec.metal,
-          stone:            spec.stone,
-          stone_shape:      spec.shape,
-          stone_size:       spec.stoneSize,
-          setting:          spec.setting,
-          details:          spec.details,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       clearInterval(ticker);
@@ -180,6 +191,10 @@ export default function JewelryBlueprint({ design }: BlueprintProps) {
   const gemColor      = getGemColor(spec.stone);
   const viewDesc      = design.multiView[activeView];
   const activeLabel   = views.find(v => v.key === activeView)?.label ?? '';
+  
+  // ─── Check if motif is present ──────────────────────────────────────────────
+  const hasMotif = design.motif && design.motif.type !== 'abstract';
+  const motifType = design.motif?.type || '';
 
   return (
     <div className="bg-[#0b120f] border border-[#1e3a2b] rounded-lg overflow-hidden shadow-2xl" id="jewelry-blueprint-wrapper">
@@ -201,6 +216,12 @@ export default function JewelryBlueprint({ design }: BlueprintProps) {
             {modelUsed && !isLoading && (
               <span className="text-[9px] text-gray-500 font-mono bg-[#0a1411] border border-[#1e3a2b] px-1.5 py-0.5 rounded">
                 {modelUsed.split('/').pop()?.replace(':free', '')}
+              </span>
+            )}
+            {/* ─── Motif Badge ────────────────────────────────────────────────── */}
+            {hasMotif && !isLoading && (
+              <span className="text-[9px] text-[#DFBE8B] font-mono bg-[#1a3828] border border-[#DFBE8B]/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                {motifType} motif
               </span>
             )}
           </div>
@@ -300,6 +321,36 @@ export default function JewelryBlueprint({ design }: BlueprintProps) {
                 ))}
               </div>
             </div>
+
+            {/* ─── Motif Details (NEW) ────────────────────────────────────────── */}
+            {hasMotif && (
+              <div>
+                <p className="text-xs text-gray-400 font-mono mb-1.5">DESIGN MOTIF</p>
+                <div className="bg-[#1a2820] border border-[#DFBE8B]/20 p-3 rounded">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] uppercase tracking-wider text-[#DFBE8B] font-mono">
+                      {design.motif?.type}
+                    </span>
+                    <span className="w-1 h-1 rounded-full bg-[#DFBE8B]/30" />
+                    <span className="text-[10px] text-gray-400 font-mono">
+                      {design.motif?.elements?.length || 0} elements
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-300 leading-relaxed">
+                    {design.motif?.description || 'Custom design motif'}
+                  </p>
+                  {design.motif?.visualKeywords && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {design.motif.visualKeywords.slice(0, 4).map((kw, i) => (
+                        <span key={i} className="text-[8px] bg-[#0f1b14] text-gray-400 px-1.5 py-0.5 rounded border border-[#1e3a2b]/30">
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* View description */}
             <div>
