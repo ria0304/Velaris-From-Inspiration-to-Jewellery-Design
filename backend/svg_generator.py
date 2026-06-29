@@ -3,16 +3,18 @@ Generates a bespoke jewellery SVG illustration for a given design and view
 using OpenRouter FREE models only — no paid API required.
 
 Free model chain (tried in order, first success wins):
-  1. meta-llama/llama-4-maverick:free
-  2. google/gemma-3-27b-it:free
-  3. mistralai/mistral-7b-instruct:free
+  1. qwen/qwen3-coder:free
+  2. meta-llama/llama-3.3-70b-instruct:free
+  3. google/gemma-3-12b-it:free
+  4. mistralai/devstral-small:free
+  5. openrouter/auto
 
-Returns: { "svg": "<svg ...>...</svg>", "model_used": "..." }
+Returns: { "svg": "<svg>...</svg>", "model_used": "..." }
 """
 
 import json
 import re
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 import requests
 from fastapi import APIRouter, HTTPException
@@ -31,7 +33,7 @@ FREE_MODEL_CHAIN = [
     "openrouter/auto",               # catch-all: OpenRouter picks best available free model
 ]
 
-# ── Color palettes (kept backend-side so frontend sends none) ─────────────────
+# ── Color palettes ─────────────────────────────────────────────────────────────
 METAL_PALETTE = {
     "platinum":        {"stroke": "#C8D8D0", "fill": "#1C2E28", "highlight": "#E2EDE8", "shadow": "#0A1410"},
     "white gold":      {"stroke": "#B8CEC8", "fill": "#182420", "highlight": "#D4E4DE", "shadow": "#080E0C"},
@@ -64,7 +66,210 @@ def _get_palette(mapping: dict, key: str, default_key: str) -> dict:
     return mapping[default_key]
 
 
-# ── Request / Response schemas ─────────────────────────────────────────────────
+# ─── NEW: Motif to SVG instructions ────────────────────────────────────────────
+def _get_motif_instructions(motif: Optional[Dict[str, Any]]) -> str:
+    """Generate specific SVG drawing instructions based on motif type."""
+    
+    if not motif:
+        return """
+CRITICAL: No specific motif was provided. Draw a generic but elegant representation of the jewelry type.
+"""
+    
+    motif_type = motif.get('type', 'abstract')
+    description = motif.get('description', '')
+    elements = motif.get('elements', [])
+    visual_keywords = motif.get('visualKeywords', [])
+    
+    instructions = []
+    
+    # ─── ANIMAL MOTIFS ──────────────────────────────────────────────────────────
+    if motif_type == 'animal':
+        instructions.append("""
+=== ANIMAL MOTIF: DRAW THE SPECIFIC ANIMAL/CREATURE ===
+DO NOT draw a generic star, starburst, or abstract shape.
+Draw the ACTUAL animal or creature described.""")
+
+        # Phoenix specific
+        if 'phoenix' in description.lower() or any('phoenix' in kw.lower() for kw in visual_keywords):
+            instructions.append("""
+PHOENIX DRAWING INSTRUCTIONS:
+- Draw a majestic phoenix bird at the center
+- Spread wings: large sweeping curves rising upward and outward
+- Tail feathers: flowing downward with multiple plumes
+- Distinct head with a beak and crest
+- Ruby eye: use the gem colour for a prominent eye
+- Feather details: overlapping curved lines on wings and body
+- Body should be graceful with a curved neck""")
+
+        # Butterfly specific
+        elif 'butterfly' in description.lower() or any('butterfly' in kw.lower() for kw in visual_keywords):
+            instructions.append("""
+BUTTERFLY DRAWING INSTRUCTIONS:
+- Draw a symmetrical butterfly with 4 wings (2 upper, 2 lower)
+- Upper wings: larger, rounded triangular shapes
+- Lower wings: smaller, teardrop shapes
+- Body: thin elongated oval with antennae
+- Wing patterns: circular or teardrop decorative elements on wings
+- Use the gem colour for wing accents""")
+
+        # Eagle/Hawk specific
+        elif 'eagle' in description.lower() or 'hawk' in description.lower():
+            instructions.append("""
+EAGLE/HAWK DRAWING INSTRUCTIONS:
+- Draw a powerful bird in flight or perched
+- Strong curved beak
+- Sharp, angular wings with distinct feather tips
+- Tail feathers in a fan shape
+- Keen eye (use gem colour)
+- Muscular, commanding posture""")
+
+        # Serpent/Snake specific
+        elif 'serpent' in description.lower() or 'snake' in description.lower():
+            instructions.append("""
+SERPENT/SNAKE DRAWING INSTRUCTIONS:
+- Draw an elegant coiled snake
+- Curved, flowing body with defined segments
+- Distinct head with eyes (use gem colour)
+- Tongue: forked, extending outward
+- Scales: overlapping pattern along the body""")
+
+        # Generic animal
+        else:
+            instructions.append("""
+GENERIC ANIMAL DRAWING INSTRUCTIONS:
+- Draw a stylized animal silhouette
+- Make it clearly recognizable as the animal mentioned
+- Include key features: head, body, limbs
+- Use flowing, organic curves
+- Add decorative elements that match the jewelry style""")
+
+    # ─── FLORAL MOTIFS ──────────────────────────────────────────────────────────
+    elif motif_type == 'floral':
+        instructions.append("""
+=== FLORAL MOTIF: DRAW FLOWERS AND PLANT ELEMENTS ===
+DO NOT draw a generic star or abstract shape.
+Draw ACTUAL flowers, petals, leaves, and stems.""")
+
+        if 'rose' in description.lower() or any('rose' in kw.lower() for kw in visual_keywords):
+            instructions.append("""
+ROSE DRAWING INSTRUCTIONS:
+- Draw a layered rose flower at the center
+- Outer petals: large, overlapping curved shapes
+- Inner petals: smaller, tightly packed, spiraling inward
+- Leaves: pointed, serrated edges on stems
+- Use flowing, organic curves for petals
+- The gem can be the center of the rose or an accent""")
+
+        elif 'lotus' in description.lower() or any('lotus' in kw.lower() for kw in visual_keywords):
+            instructions.append("""
+LOTUS DRAWING INSTRUCTIONS:
+- Draw a blooming lotus flower
+- Petals: pointed, arranged in layers (bottom petals wider, top petals pointed)
+- Center: visible seed pod or gem
+- Leaves: large, circular with cleft
+- Use symmetrical, elegant curves""")
+
+        else:
+            instructions.append("""
+GENERIC FLORAL DRAWING INSTRUCTIONS:
+- Draw multiple layers of petals
+- Center: use the gem as the flower center
+- Add leaves branching outward
+- Use organic, flowing curves
+- Make it lush and decorative""")
+
+    # ─── GEOMETRIC MOTIFS ──────────────────────────────────────────────────────
+    elif motif_type == 'geometric':
+        instructions.append("""
+=== GEOMETRIC MOTIF: DRAW PRECISE GEOMETRIC PATTERNS ===
+Draw clean, precise geometric shapes and patterns.""")
+
+        if 'art deco' in description.lower() or any('deco' in kw.lower() for kw in visual_keywords):
+            instructions.append("""
+ART DECO DRAWING INSTRUCTIONS:
+- Use angular, symmetrical geometric patterns
+- Include: chevrons, zigzags, stepped shapes, fans
+- Clean lines with sharp corners
+- Symmetrical composition
+- Use repeating geometric elements""")
+
+        else:
+            instructions.append("""
+GENERIC GEOMETRIC DRAWING INSTRUCTIONS:
+- Use concentric shapes (circles, diamonds, polygons)
+- Include repeating patterns
+- Symmetrical composition
+- Clean, precise lines
+- Layer different geometric shapes""")
+
+    # ─── CELESTIAL MOTIFS ──────────────────────────────────────────────────────
+    elif motif_type == 'celestial':
+        instructions.append("""
+=== CELESTIAL MOTIF: DRAW STARS, MOON, AND COSMIC ELEMENTS ===
+Draw celestial bodies and cosmic patterns.""")
+
+        instructions.append("""
+CELESTIAL DRAWING INSTRUCTIONS:
+- Draw a prominent star or moon as the focal point
+- Add smaller stars radiating outward
+- Use curved, flowing cosmic lines
+- Gem can be the center of a star or moon
+- Add sparkling effects with small diamonds""")
+
+    # ─── ABSTRACT / OTHER ──────────────────────────────────────────────────────
+    else:
+        instructions.append("""
+=== ABSTRACT MOTIF: DRAW ARTISTIC, FLOWING SHAPES ===
+Draw organic, flowing abstract shapes.""")
+
+        instructions.append("""
+ABSTRACT DRAWING INSTRUCTIONS:
+- Use flowing, organic curves
+- Layer multiple abstract shapes
+- Create a sense of movement
+- Use the gem as a focal point
+- Add decorative swirls and spirals""")
+
+    # ─── COMMON INSTRUCTIONS FOR ALL MOTIFS ──────────────────────────────────
+    instructions.append(f"""
+MOTIF SUMMARY:
+- Type: {motif_type}
+- Description: {description}
+- Elements: {', '.join(elements) if elements else 'none specified'}
+- Visual Keywords: {', '.join(visual_keywords) if visual_keywords else 'none'}
+
+CRITICAL REMINDER:
+- DRAW THE SPECIFIC {motif_type.upper()} MOTIF
+- DO NOT draw a generic star, starburst, or placeholder shape
+- The motif should be the MAIN FOCAL POINT of the illustration
+- Make it clearly recognizable as {description}
+""")
+
+    return '\n'.join(instructions)
+
+
+# ─── NEW: Motif-specific dimension annotation ──────────────────────────────────
+def _get_motif_annotation(motif: Optional[Dict[str, Any]]) -> str:
+    """Generate motif-appropriate measurement annotation."""
+    
+    if not motif:
+        return '"18mm span"'
+    
+    motif_type = motif.get('type', '')
+    
+    if motif_type == 'animal':
+        return '"12mm wingspan"'
+    elif motif_type == 'floral':
+        return '"14mm bloom"'
+    elif motif_type == 'geometric':
+        return '"12mm pattern"'
+    elif motif_type == 'celestial':
+        return '"10mm star"'
+    else:
+        return '"14mm motif"'
+
+
+# ─── UPDATED: Request schema with motif ────────────────────────────────────────
 class SVGRequest(BaseModel):
     design_id: str
     design_name: str
@@ -79,6 +284,7 @@ class SVGRequest(BaseModel):
     stone_size: str
     setting: str
     details: str         # spec.details from AI
+    motif: Optional[Dict[str, Any]] = None  # NEW: Motif data
 
 
 class SVGResponse(BaseModel):
@@ -86,7 +292,7 @@ class SVGResponse(BaseModel):
     model_used: str
 
 
-# ── Prompt builder ─────────────────────────────────────────────────────────────
+# ─── UPDATED: Prompt builder with motif awareness ─────────────────────────────
 def _build_prompt(req: SVGRequest) -> str:
     metal = _get_palette(METAL_PALETTE, req.metal, "yellow gold")
     gem   = _get_palette(GEM_PALETTE,   req.stone, "diamond")
@@ -96,6 +302,14 @@ def _build_prompt(req: SVGRequest) -> str:
         "front":       "front face / head-on",
         "side":        "side profile",
     }.get(req.view, "artistic 3/4 angle")
+
+    # ─── Build motif instructions ──────────────────────────────────────────────
+    motif_instructions = _get_motif_instructions(req.motif)
+    motif_annotation = _get_motif_annotation(req.motif)
+
+    # ─── Check if motif exists ──────────────────────────────────────────────────
+    has_motif = req.motif is not None and req.motif.get('type') != 'abstract'
+    motif_type = req.motif.get('type', '') if req.motif else ''
 
     return f"""You are an expert SVG illustrator specialising in fine jewellery technical drawings with a blueprint aesthetic.
 
@@ -112,6 +326,12 @@ Gemstone: {req.stone} ({req.stone_shape} cut, {req.stone_size})
 Setting: {req.setting}
 Design details: {req.details}
 
+=== MOTIF INFORMATION ===
+{has_motif}
+Motif Type: {motif_type}
+Motif Instructions:
+{motif_instructions}
+
 === COLOUR TOKENS (use EXACTLY these hex values, no others) ===
 Metal stroke: {metal['stroke']}
 Metal body fill: {metal['fill']}
@@ -126,18 +346,37 @@ Blueprint grid lines: #0D2018
 Dimension annotation: #10B981
 
 === STRICT RULES ===
-1. MOTIF FIRST: Draw the SPECIFIC subject from the prompt. "phoenix brooch" → phoenix bird with spread wings and feathers. "floral ring" → petals and stems. "dragon pendant" → dragon form. "art deco" → geometric fans and chevrons. NEVER draw a generic starburst, star, or placeholder shape.
+1. MOTIF FIRST: Draw the SPECIFIC subject from the prompt. {"Draw the " + req.motif.get('description', 'motif') if has_motif else "Draw a generic but elegant representation of the jewelry type."}
+   - {"MOTIF TYPE: " + motif_type.upper() if has_motif else ""}
+   - {"DESCRIPTION: " + req.motif.get('description', '') if has_motif else ""}
+   - NEVER draw a generic starburst, star, or placeholder shape. The motif MUST be recognizable.
 2. viewBox must be exactly: 0 0 200 200
 3. Output ONLY raw SVG. Start with <svg and end with </svg>. Zero prose, zero markdown, zero code fences.
 4. Include a <defs> section with: (a) a radialGradient id="gemGlow" for the stone, (b) a linearGradient id="metalSheen" for metal surfaces.
 5. Draw a subtle blueprint grid background: thin lines every 25px in #0D2018 at opacity 0.4.
-6. Add ONE dimension annotation in #10B981 — a dashed line with two tick marks and a small label showing a key measurement (e.g. "18mm span").
+6. Add ONE dimension annotation in #10B981 — a dashed line with two tick marks and a small label showing a key measurement (e.g. {motif_annotation}).
 7. The gemstone must show internal facet lines using the gem facet colour.
 8. Add a soft drop-shadow or glow effect on the main subject using a feGaussianBlur filter.
 9. Minimum 12 distinct SVG elements — this is a premium technical illustration, not a sketch.
 10. The piece must be centred in the 200×200 canvas with adequate padding (min 15px from edges).
 
+=== VIEW-SPECIFIC ADJUSTMENTS ===
+{_get_view_adjustments(req.view, req.jewelry_type)}
+
 Draw the jewellery now:"""
+
+
+def _get_view_adjustments(view: str, jewelry_type: str) -> str:
+    """Provide view-specific guidance."""
+    
+    base = f"Draw from the {view} perspective."
+    
+    if view == 'front':
+        return base + " Show the piece head-on. Symmetry is important. Display all major design elements clearly."
+    elif view == 'side':
+        return base + " Show the side/profile. Focus on the silhouette and depth. Show the band/profile thickness."
+    else:  # perspective
+        return base + " Show the piece at a 3/4 angle. Give it depth and dimension. Show both front and side elements."
 
 
 # ── Core generation function ───────────────────────────────────────────────────
