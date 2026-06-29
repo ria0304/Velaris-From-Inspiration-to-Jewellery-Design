@@ -11,6 +11,14 @@ from backend.pdf_generator import generate_design_pdf
 from backend.schemas import PDFExportRequest, PDFExportResponse
 from backend.storage import get_design_by_id
 
+# ─── NEW: Import sketch processor ─────────────────────────────────────────────
+try:
+    from backend.sketch_processor import router as sketch_router
+    SKETCH_AVAILABLE = True
+except ImportError:
+    SKETCH_AVAILABLE = False
+    print("Warning: sketch_processor not available. OpenCV may not be installed.")
+
 app = FastAPI(
     title="Velaris Jewelry Design Engine",
     description="FastAPI backend powered by an OpenRouter multi-model fallback chain",
@@ -25,16 +33,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ─── Include all routers ──────────────────────────────────────────────────────
 app.include_router(design.router)
 app.include_router(advisor.router)
 app.include_router(trends.router)
 app.include_router(storage.router)
 app.include_router(svg_router)
 
+# ─── Include sketch router if available ──────────────────────────────────────
+if SKETCH_AVAILABLE:
+    app.include_router(sketch_router)
+    print("✅ Sketch processor router loaded successfully")
+else:
+    print("⚠️  Sketch processor router NOT loaded (OpenCV missing)")
 
-# ---------------------------------------------------------------------------
-# PDF Export Endpoint
-# ---------------------------------------------------------------------------
+
+# ─── Health Check ──────────────────────────────────────────────────────────────
+@app.get("/api/health")
+async def health_check():
+    """Check if the API is running and all dependencies are available."""
+    return {
+        "status": "healthy",
+        "version": "2.0.0",
+        "sketch_processor": SKETCH_AVAILABLE,
+        "services": {
+            "design": True,
+            "advisor": True,
+            "trends": True,
+            "storage": True,
+            "svg_generator": True,
+            "pdf_generator": True,
+        }
+    }
+
+
+# ─── PDF Export Endpoint ──────────────────────────────────────────────────────
 
 @app.post("/api/export-pdf", response_model=PDFExportResponse)
 async def export_design_pdf(request: PDFExportRequest):
