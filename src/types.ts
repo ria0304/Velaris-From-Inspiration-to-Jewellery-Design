@@ -1,3 +1,5 @@
+// src/types.ts
+
 export interface JewelrySpec {
   type: 'Ring' | 'Earrings' | 'Necklace' | 'Bracelet' | 'Brooch';
   metal: '18K Yellow Gold' | '18K White Gold' | '18K Rose Gold' | 'Platinum' | '14K Yellow Gold' | 'Sterling Silver';
@@ -32,6 +34,20 @@ export interface MultiView {
   perspective: string; // 3D perspective narrative description
 }
 
+// ─── NEW: Motif Data Structure ────────────────────────────────────────────────
+export interface MotifData {
+  type: 'animal' | 'floral' | 'geometric' | 'celestial' | 'abstract' | 'other';
+  description: string;           // e.g., "phoenix with spread wings and ruby eye"
+  elements: string[];            // e.g., ['wings', 'tail feathers', 'ruby eye']
+  specificDetails?: {
+    [key: string]: string | number | boolean;
+    // e.g., { wings: 'spread', eyeColor: 'ruby', tailLength: 'long' }
+  };
+  visualKeywords: string[];      // For SVG generation prompt
+  shapeHint?: string;            // e.g., "bird silhouette", "flower petals", "geometric pattern"
+}
+
+// ─── UPDATED: DesignPackage with motif ────────────────────────────────────────
 export interface DesignPackage {
   id: string;
   name: string;
@@ -44,8 +60,28 @@ export interface DesignPackage {
   multiView: MultiView;
   notes: string;
   inputImage?: string; // base64 if sketch/photo
+  motif?: MotifData;   // NEW: Motif information from AI spec
 }
 
+// ─── API Request for SVG Generation ───────────────────────────────────────────
+export interface SVGGenerationRequest {
+  design_id: string;
+  design_name: string;
+  prompt: string;
+  notes: string;
+  view: 'perspective' | 'front' | 'side';
+  view_description: string;
+  jewelry_type: string;
+  metal: string;
+  stone: string;
+  stone_shape: string;
+  stone_size: string;
+  setting: string;
+  details: string;
+  motif?: MotifData | null;  // NEW: Pass motif to backend
+}
+
+// ─── Existing types (unchanged) ──────────────────────────────────────────────
 export interface AdvisorRequest {
   age?: string;
   budget: number;
