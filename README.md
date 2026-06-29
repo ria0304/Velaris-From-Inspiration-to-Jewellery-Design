@@ -3,7 +3,6 @@
 [![GitHub](https://img.shields.io/badge/GitHub-Velaris-black?style=flat-square&logo=github)](https://github.com/ria0304/Velaris-From-Inspiration-to-Jewellery-Design)
 <img src="https://img.shields.io/badge/React-TypeScript-blue?style=flat-square&logo=react" />
 <img src="https://img.shields.io/badge/FastAPI-Python-green?style=flat-square&logo=fastapi" />
-<img src="https://img.shields.io/badge/AWS-S3%20%2B%20CloudFront-orange?style=flat-square&logo=amazonaws" />
 <img src="https://img.shields.io/badge/AI-OpenRouter%20Fallback%20Chain-purple?style=flat-square" />
 <img src="https://img.shields.io/badge/Storage-SQLite-blue?style=flat-square&logo=sqlite" />
 <img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-black?style=flat-square&logo=githubactions" />
@@ -116,29 +115,21 @@ No two designs produce the same manufacturing brief.
 ```mermaid
 flowchart TD
     A["🌐 Browser\nUser"]:::gray
-    B["⚡ CloudFront CDN\nHTTPS · global edge caching"]:::purple
-    C["🗂️ S3 Static Frontend\nReact + Vite · TypeScript"]:::teal
-    D["🐍 Velaris FastAPI Backend\nDocker · EC2 · port 3000"]:::blue
-    E["🗄️ SQLite Database\nvelaris.db · persistent volume"]:::gray
-    F["🤖 OpenRouter\nClaude → GPT-4o → Gemini fallback"]:::amber
+    B["⚡ Vite Dev Server\nlocalhost:5173"]:::teal
+    C["🐍 Velaris FastAPI Backend\nlocalhost:3000"]:::blue
+    D["🗄️ SQLite Database\nvelaris.db"]:::gray
+    E["🤖 OpenRouter\nClaude → GPT-4o → Gemini fallback"]:::amber
 
     A --> B
-    B --> C
-    C -->|"POST /api/generate-design"| D
-    D --> E
-    D --> F
+    B -->|"POST /api/generate-design"| C
+    C --> D
+    C --> E
 
     classDef gray   fill:#e8e6e1,stroke:#9c9a92,color:#2C2C2A
-    classDef purple fill:#EEEDFE,stroke:#534AB7,color:#3C3489
     classDef teal   fill:#E1F5EE,stroke:#0F6E56,color:#085041
     classDef blue   fill:#E6F1FB,stroke:#185FA5,color:#0C447C
     classDef amber  fill:#FAEEDA,stroke:#854F0B,color:#633806
 ```
-
-**Planned deployment**
-- Frontend → AWS S3 + CloudFront (HTTPS, CDN cached, global)
-- Backend → Docker on EC2 (ap-south-1), port 3000
-- Database → SQLite at `VELARIS_DB_PATH` on a mounted EBS volume
 
 ---
 
@@ -147,14 +138,13 @@ flowchart TD
 **Frontend**
 - React 19 + TypeScript + Vite
 - Tailwind CSS
-- Deployed on AWS S3 + CloudFront (HTTPS)
 
 **Backend**
 - FastAPI (Python)
 - SQLite via `sqlite3` stdlib (WAL mode, persistent JSON blob storage)
 - OpenRouter multi-model fallback chain: `claude-sonnet-4.5` → `gpt-4o` → `gemini-2.5-flash`
 - ReportLab for PDF generation
-- Dockerized, deployable on AWS EC2
+- Dockerized
 
 ---
 
@@ -294,26 +284,9 @@ curl -X POST http://localhost:3000/api/generate-design \
 
 ## Deployment
 
-**Planned stack:**
-- Frontend → AWS S3 + CloudFront
-- Backend → Docker on AWS EC2 (ap-south-1)
-- Database → SQLite on a mounted EBS volume (`VELARIS_DB_PATH=/app/data/velaris.db`)
+Not yet configured. The app runs locally — see **Run Locally** above.
 
-Docker run command:
-
-```bash
-sudo docker build -t velaris-backend .
-sudo docker run -d \
-  --name velaris \
-  --restart unless-stopped \
-  -p 3000:3000 \
-  --env-file .env \
-  -e VELARIS_DB_PATH=/app/data/velaris.db \
-  -v /home/ubuntu/velaris-data:/app/data \
-  velaris-backend
-```
-
-> The `-v` volume mount is required — without it the SQLite database is wiped on every `docker build`.
+A `Dockerfile` is included for when deployment is ready. The `-v` volume mount will be required to persist the SQLite database across container rebuilds.
 
 ---
 
@@ -350,5 +323,5 @@ sudo docker run -d \
 | Similar item shopping | Suggest where to buy something similar |
 | React Native app | Camera access makes uploads much easier |
 | Barcode scanner | Check if a piece fits your aesthetic before buying |
-| Multi-region AWS | Add a second region for users outside Mumbai |
+
 | RDS Postgres | Replace SQLite for production-scale concurrent traffic |
