@@ -46,6 +46,7 @@ def call_openrouter_with_fallback(
     schema_name: str,
     json_schema: Dict[str, Any],
     timeout: int = 60,
+    max_tokens: int = 2000,  # ← ADDED: Reasonable token limit (Option 1)
 ) -> Tuple[Dict[str, Any], str]:
     """Tries each model in the fallback chain in order. Returns the parsed
     JSON body plus the model slug that succeeded. Raises HTTPException only
@@ -72,6 +73,7 @@ def call_openrouter_with_fallback(
                     "schema": json_schema,
                 },
             },
+            "max_tokens": max_tokens,  # ← ADDED: Controls output length (Option 1)
             "temperature": 0.8,
         }
 
