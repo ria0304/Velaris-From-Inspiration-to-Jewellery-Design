@@ -8,6 +8,7 @@ The caller never has to know which model actually produced the result.
 """
 
 import json
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
@@ -41,12 +42,29 @@ def build_design_messages(
     ]
 
 
+def clean_json_content(content: str) -> str:
+    """Clean JSON content from markdown, extra text, and whitespace."""
+    if not content:
+        return "{}"
+    
+    # Remove markdown code blocks
+    content = re.sub(r'```json\s*', '', content)
+    content = re.sub(r'```\s*', '', content)
+    
+    # Try to find JSON object in the text
+    json_match = re.search(r'\{.*\}', content, re.DOTALL)
+    if json_match:
+        return json_match.group(0)
+    
+    return content.strip()
+
+
 def call_openrouter_with_fallback(
     messages: List[Dict[str, Any]],
     schema_name: str,
     json_schema: Dict[str, Any],
     timeout: int = 60,
-    max_tokens: int = 2000,  # ← ADDED: Reasonable token limit (Option 1)
+    max_tokens: int = 2000,
 ) -> Tuple[Dict[str, Any], str]:
     """Tries each model in the fallback chain in order. Returns the parsed
     JSON body plus the model slug that succeeded. Raises HTTPException only
@@ -73,25 +91,68 @@ def call_openrouter_with_fallback(
                     "schema": json_schema,
                 },
             },
-            "max_tokens": max_tokens,  # ← ADDED: Controls output length (Option 1)
+            "max_tokens": max_tokens,
             "temperature": 0.8,
         }
 
         try:
+            print(f"🔄 Trying OpenRouter model: {model_slug}")
             resp = requests.post(OPENROUTER_API_URL, headers=headers, json=payload, timeout=timeout)
+            
             if resp.status_code != 200:
                 last_error = f"{model_slug} returned HTTP {resp.status_code}: {resp.text[:300]}"
+                print(f"⚠️ {last_error}")
                 continue
 
             body = resp.json()
-            content = body["choices"][0]["message"]["content"]
-            parsed = json.loads(content)
-            return parsed, model_slug
+            
+            # Check if choices exist
+            if "choices" not in body or len(body["choices"]) == 0:
+                last_error = f"{model_slug} returned no choices: {body}"
+                print(f"⚠️ {last_error}")
+                continue
+            
+            # Check if message exists
+            message = body["choices"][0].get("message")
+            if not message:
+                last_error = f"{model_slug} returned no message: {body}"
+                print(f"⚠️ {last_error}")
+                continue
+            
+            # Check if content exists and is not None
+            content = message.get("content")
+            if not content:
+                last_error = f"{model_slug} returned empty content: {body}"
+                print(f"⚠️ {last_error}")
+                continue
+            
+            # Try to parse JSON, with cleaning if needed
+            try:
+                parsed = json.loads(content)
+                print(f"✅ {model_slug} succeeded!")
+                return parsed, model_slug
+            except json.JSONDecodeError:
+                # Try cleaning the content
+                cleaned_content = clean_json_content(content)
+                try:
+                    parsed = json.loads(cleaned_content)
+                    print(f"✅ {model_slug} succeeded (with cleaning)!")
+                    return parsed, model_slug
+                except json.JSONDecodeError as json_err:
+                    last_error = f"{model_slug} invalid JSON: {json_err}. Content: {content[:200]}"
+                    print(f"⚠️ {last_error}")
+                    continue
 
-        except (requests.RequestException, KeyError, IndexError, json.JSONDecodeError) as exc:
-            last_error = f"{model_slug} failed: {exc}"
+        except requests.RequestException as exc:
+            last_error = f"{model_slug} request failed: {exc}"
+            print(f"⚠️ {last_error}")
+            continue
+        except Exception as exc:
+            last_error = f"{model_slug} unexpected error: {exc}"
+            print(f"⚠️ {last_error}")
             continue
 
+    # If we've exhausted all models, raise an exception
     raise HTTPException(
         status_code=502,
         detail=f"All models in the fallback chain failed. Last error: {last_error}"
