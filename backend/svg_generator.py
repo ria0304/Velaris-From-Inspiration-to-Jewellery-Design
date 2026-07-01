@@ -3,10 +3,10 @@ Generates a bespoke jewellery SVG illustration for a given design and view
 using OpenRouter FREE models only — no paid API required.
 
 Free model chain (tried in order, first success wins):
-  1. qwen/qwen3-coder:free
-  2. meta-llama/llama-3.3-70b-instruct:free
-  3. google/gemma-3-12b-it:free
-  4. mistralai/devstral-small:free
+  1. google/gemini-2.0-flash-exp
+  2. google/gemma-2-2b-it:free
+  3. microsoft/phi-2:free
+  4. qwen/qwen3-coder:free
   5. openrouter/auto
 
 Returns: { "svg": "<svg>...</svg>", "model_used": "..." }
@@ -24,16 +24,16 @@ from .config import OPENROUTER_API_URL, get_app_url, get_openrouter_key
 
 router = APIRouter()
 
-# ── Free-only model chain ─────────────────────────────────────────────────────
+# Free-only model chain - using reliable, working models
 FREE_MODEL_CHAIN = [
+    "google/gemini-2.0-flash-exp",
+    "google/gemma-2-2b-it:free",
+    "microsoft/phi-2:free",
     "qwen/qwen3-coder:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "google/gemma-3-12b-it:free",
-    "mistralai/devstral-small:free",
-    "openrouter/auto",               # catch-all: OpenRouter picks best available free model
+    "openrouter/auto",
 ]
 
-# ── Color palettes ─────────────────────────────────────────────────────────────
+# Color palettes
 METAL_PALETTE = {
     "platinum":        {"stroke": "#C8D8D0", "fill": "#1C2E28", "highlight": "#E2EDE8", "shadow": "#0A1410"},
     "white gold":      {"stroke": "#B8CEC8", "fill": "#182420", "highlight": "#D4E4DE", "shadow": "#080E0C"},
@@ -66,7 +66,6 @@ def _get_palette(mapping: dict, key: str, default_key: str) -> dict:
     return mapping[default_key]
 
 
-# ─── NEW: Motif to SVG instructions ────────────────────────────────────────────
 def _get_motif_instructions(motif: Optional[Dict[str, Any]]) -> str:
     """Generate specific SVG drawing instructions based on motif type."""
     
@@ -82,14 +81,13 @@ CRITICAL: No specific motif was provided. Draw a generic but elegant representat
     
     instructions = []
     
-    # ─── ANIMAL MOTIFS ──────────────────────────────────────────────────────────
+    # Animal motifs
     if motif_type == 'animal':
         instructions.append("""
 === ANIMAL MOTIF: DRAW THE SPECIFIC ANIMAL/CREATURE ===
 DO NOT draw a generic star, starburst, or abstract shape.
 Draw the ACTUAL animal or creature described.""")
 
-        # Phoenix specific
         if 'phoenix' in description.lower() or any('phoenix' in kw.lower() for kw in visual_keywords):
             instructions.append("""
 PHOENIX DRAWING INSTRUCTIONS:
@@ -101,7 +99,6 @@ PHOENIX DRAWING INSTRUCTIONS:
 - Feather details: overlapping curved lines on wings and body
 - Body should be graceful with a curved neck""")
 
-        # Butterfly specific
         elif 'butterfly' in description.lower() or any('butterfly' in kw.lower() for kw in visual_keywords):
             instructions.append("""
 BUTTERFLY DRAWING INSTRUCTIONS:
@@ -112,7 +109,6 @@ BUTTERFLY DRAWING INSTRUCTIONS:
 - Wing patterns: circular or teardrop decorative elements on wings
 - Use the gem colour for wing accents""")
 
-        # Eagle/Hawk specific
         elif 'eagle' in description.lower() or 'hawk' in description.lower():
             instructions.append("""
 EAGLE/HAWK DRAWING INSTRUCTIONS:
@@ -123,7 +119,6 @@ EAGLE/HAWK DRAWING INSTRUCTIONS:
 - Keen eye (use gem colour)
 - Muscular, commanding posture""")
 
-        # Serpent/Snake specific
         elif 'serpent' in description.lower() or 'snake' in description.lower():
             instructions.append("""
 SERPENT/SNAKE DRAWING INSTRUCTIONS:
@@ -133,7 +128,6 @@ SERPENT/SNAKE DRAWING INSTRUCTIONS:
 - Tongue: forked, extending outward
 - Scales: overlapping pattern along the body""")
 
-        # Generic animal
         else:
             instructions.append("""
 GENERIC ANIMAL DRAWING INSTRUCTIONS:
@@ -143,7 +137,7 @@ GENERIC ANIMAL DRAWING INSTRUCTIONS:
 - Use flowing, organic curves
 - Add decorative elements that match the jewelry style""")
 
-    # ─── FLORAL MOTIFS ──────────────────────────────────────────────────────────
+    # Floral motifs
     elif motif_type == 'floral':
         instructions.append("""
 === FLORAL MOTIF: DRAW FLOWERS AND PLANT ELEMENTS ===
@@ -178,7 +172,7 @@ GENERIC FLORAL DRAWING INSTRUCTIONS:
 - Use organic, flowing curves
 - Make it lush and decorative""")
 
-    # ─── GEOMETRIC MOTIFS ──────────────────────────────────────────────────────
+    # Geometric motifs
     elif motif_type == 'geometric':
         instructions.append("""
 === GEOMETRIC MOTIF: DRAW PRECISE GEOMETRIC PATTERNS ===
@@ -202,7 +196,7 @@ GENERIC GEOMETRIC DRAWING INSTRUCTIONS:
 - Clean, precise lines
 - Layer different geometric shapes""")
 
-    # ─── CELESTIAL MOTIFS ──────────────────────────────────────────────────────
+    # Celestial motifs
     elif motif_type == 'celestial':
         instructions.append("""
 === CELESTIAL MOTIF: DRAW STARS, MOON, AND COSMIC ELEMENTS ===
@@ -216,7 +210,7 @@ CELESTIAL DRAWING INSTRUCTIONS:
 - Gem can be the center of a star or moon
 - Add sparkling effects with small diamonds""")
 
-    # ─── ABSTRACT / OTHER ──────────────────────────────────────────────────────
+    # Abstract / other
     else:
         instructions.append("""
 === ABSTRACT MOTIF: DRAW ARTISTIC, FLOWING SHAPES ===
@@ -230,7 +224,6 @@ ABSTRACT DRAWING INSTRUCTIONS:
 - Use the gem as a focal point
 - Add decorative swirls and spirals""")
 
-    # ─── COMMON INSTRUCTIONS FOR ALL MOTIFS ──────────────────────────────────
     instructions.append(f"""
 MOTIF SUMMARY:
 - Type: {motif_type}
@@ -248,7 +241,6 @@ CRITICAL REMINDER:
     return '\n'.join(instructions)
 
 
-# ─── NEW: Motif-specific dimension annotation ──────────────────────────────────
 def _get_motif_annotation(motif: Optional[Dict[str, Any]]) -> str:
     """Generate motif-appropriate measurement annotation."""
     
@@ -269,13 +261,12 @@ def _get_motif_annotation(motif: Optional[Dict[str, Any]]) -> str:
         return '"14mm motif"'
 
 
-# ─── UPDATED: Request schema with motif ────────────────────────────────────────
 class SVGRequest(BaseModel):
     design_id: str
     design_name: str
-    prompt: str          # original user prompt
-    notes: str           # AI design narrative
-    view: str            # "perspective" | "front" | "side"
+    prompt: str
+    notes: str
+    view: str
     view_description: str
     jewelry_type: str
     metal: str
@@ -283,8 +274,8 @@ class SVGRequest(BaseModel):
     stone_shape: str
     stone_size: str
     setting: str
-    details: str         # spec.details from AI
-    motif: Optional[Dict[str, Any]] = None  # NEW: Motif data
+    details: str
+    motif: Optional[Dict[str, Any]] = None
 
 
 class SVGResponse(BaseModel):
@@ -292,7 +283,6 @@ class SVGResponse(BaseModel):
     model_used: str
 
 
-# ─── UPDATED: Prompt builder with motif awareness ─────────────────────────────
 def _build_prompt(req: SVGRequest) -> str:
     metal = _get_palette(METAL_PALETTE, req.metal, "yellow gold")
     gem   = _get_palette(GEM_PALETTE,   req.stone, "diamond")
@@ -303,11 +293,9 @@ def _build_prompt(req: SVGRequest) -> str:
         "side":        "side profile",
     }.get(req.view, "artistic 3/4 angle")
 
-    # ─── Build motif instructions ──────────────────────────────────────────────
     motif_instructions = _get_motif_instructions(req.motif)
     motif_annotation = _get_motif_annotation(req.motif)
 
-    # ─── Check if motif exists ──────────────────────────────────────────────────
     has_motif = req.motif is not None and req.motif.get('type') != 'abstract'
     motif_type = req.motif.get('type', '') if req.motif else ''
 
@@ -375,11 +363,10 @@ def _get_view_adjustments(view: str, jewelry_type: str) -> str:
         return base + " Show the piece head-on. Symmetry is important. Display all major design elements clearly."
     elif view == 'side':
         return base + " Show the side/profile. Focus on the silhouette and depth. Show the band/profile thickness."
-    else:  # perspective
+    else:
         return base + " Show the piece at a 3/4 angle. Give it depth and dimension. Show both front and side elements."
 
 
-# ── Core generation function ───────────────────────────────────────────────────
 def _call_free_model(prompt: str, timeout: int = 90) -> tuple[str, str]:
     """Try each free model in order. Returns (raw_text, model_slug)."""
     api_key = get_openrouter_key()
@@ -404,7 +391,7 @@ def _call_free_model(prompt: str, timeout: int = 90) -> tuple[str, str]:
                 OPENROUTER_API_URL, headers=headers, json=payload, timeout=timeout
             )
             if resp.status_code != 200:
-                last_error = f"{model_slug} → HTTP {resp.status_code}: {resp.text[:200]}"
+                last_error = f"{model_slug} -> HTTP {resp.status_code}: {resp.text[:200]}"
                 continue
 
             body    = resp.json()
@@ -412,10 +399,10 @@ def _call_free_model(prompt: str, timeout: int = 90) -> tuple[str, str]:
             if content and "<svg" in content:
                 return content, model_slug
 
-            last_error = f"{model_slug} → response contained no SVG"
+            last_error = f"{model_slug} -> response contained no SVG"
 
         except (requests.RequestException, KeyError, IndexError) as exc:
-            last_error = f"{model_slug} → {exc}"
+            last_error = f"{model_slug} -> {exc}"
             continue
 
     raise HTTPException(
@@ -437,17 +424,190 @@ def _extract_svg(raw: str) -> Optional[str]:
     return svg
 
 
-# ── FastAPI route ──────────────────────────────────────────────────────────────
+def _generate_fallback_svg(jewelry_type: str, metal: str = "yellow gold") -> str:
+    """Generate a simple but beautiful fallback SVG when AI fails."""
+    
+    metal_palette = {
+        "yellow gold": {"stroke": "#DFBE8B", "fill": "#2A1E08"},
+        "white gold": {"stroke": "#B8CEC8", "fill": "#182420"},
+        "rose gold": {"stroke": "#C4847A", "fill": "#2A1010"},
+        "platinum": {"stroke": "#C8D8D0", "fill": "#1C2E28"},
+    }
+    
+    # Find the closest metal match
+    metal_key = "yellow gold"
+    for key in metal_palette.keys():
+        if key in metal.lower():
+            metal_key = key
+            break
+    
+    colors = metal_palette.get(metal_key, metal_palette["yellow gold"])
+    
+    templates = {
+        "ring": f'''<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="gemGlow">
+                    <stop offset="0%" stop-color="#E8F4F8" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="#4A7890" stop-opacity="0.2"/>
+                </radialGradient>
+                <linearGradient id="metalSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="{colors['stroke']}" stop-opacity="0.3"/>
+                    <stop offset="50%" stop-color="{colors['stroke']}" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="{colors['fill']}" stop-opacity="0.3"/>
+                </linearGradient>
+            </defs>
+            <rect width="200" height="200" fill="#050C08"/>
+            <g stroke="{colors['stroke']}" fill="none" stroke-width="2">
+                <ellipse cx="100" cy="100" rx="55" ry="45" stroke="url(#metalSheen)"/>
+                <ellipse cx="100" cy="100" rx="35" ry="28" stroke="#0D2018" stroke-width="1"/>
+                <circle cx="100" cy="80" r="18" fill="url(#gemGlow)" stroke="none"/>
+                <circle cx="100" cy="80" r="12" fill="none" stroke="{colors['stroke']}" stroke-width="1.5"/>
+                <line x1="90" y1="80" x2="110" y2="80" stroke="{colors['stroke']}" opacity="0.5"/>
+                <line x1="100" y1="70" x2="100" y2="90" stroke="{colors['stroke']}" opacity="0.5"/>
+                <circle cx="100" cy="100" r="45" stroke="#0D2018" stroke-width="1" stroke-dasharray="4,4"/>
+                <text x="100" y="180" text-anchor="middle" fill="#10B981" font-size="10" font-family="monospace">18mm diameter</text>
+                <line x1="45" y1="178" x2="155" y2="178" stroke="#10B981" stroke-width="0.5" stroke-dasharray="2,2"/>
+            </g>
+        </svg>''',
+        
+        "necklace": f'''<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="gemGlow">
+                    <stop offset="0%" stop-color="#E8F4F8" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="#4A7890" stop-opacity="0.2"/>
+                </radialGradient>
+                <linearGradient id="metalSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="{colors['stroke']}" stop-opacity="0.3"/>
+                    <stop offset="50%" stop-color="{colors['stroke']}" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="{colors['fill']}" stop-opacity="0.3"/>
+                </linearGradient>
+            </defs>
+            <rect width="200" height="200" fill="#050C08"/>
+            <g stroke="{colors['stroke']}" fill="none">
+                <path d="M 40 60 Q 100 30 160 60" stroke-width="2" stroke="url(#metalSheen)"/>
+                <path d="M 40 60 Q 100 30 160 60" stroke-width="1" stroke="#0D2018" stroke-dasharray="3,3"/>
+                <circle cx="100" cy="130" r="16" fill="url(#gemGlow)" stroke="none"/>
+                <circle cx="100" cy="130" r="12" stroke-width="1.5"/>
+                <line x1="90" y1="130" x2="110" y2="130" stroke="{colors['stroke']}" opacity="0.5"/>
+                <line x1="100" y1="120" x2="100" y2="140" stroke="{colors['stroke']}" opacity="0.5"/>
+                <text x="100" y="185" text-anchor="middle" fill="#10B981" font-size="10" font-family="monospace">pendant 14mm</text>
+                <line x1="45" y1="183" x2="155" y2="183" stroke="#10B981" stroke-width="0.5" stroke-dasharray="2,2"/>
+            </g>
+        </svg>''',
+        
+        "earrings": f'''<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="gemGlow">
+                    <stop offset="0%" stop-color="#E8F4F8" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="#4A7890" stop-opacity="0.2"/>
+                </radialGradient>
+                <linearGradient id="metalSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="{colors['stroke']}" stop-opacity="0.3"/>
+                    <stop offset="50%" stop-color="{colors['stroke']}" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="{colors['fill']}" stop-opacity="0.3"/>
+                </linearGradient>
+            </defs>
+            <rect width="200" height="200" fill="#050C08"/>
+            <g stroke="{colors['stroke']}" fill="none">
+                <line x1="60" y1="40" x2="60" y2="70" stroke-width="2" stroke="url(#metalSheen)"/>
+                <circle cx="60" cy="85" r="12" fill="url(#gemGlow)" stroke="none"/>
+                <circle cx="60" cy="85" r="8" stroke-width="1.5"/>
+                <line x1="140" y1="40" x2="140" y2="70" stroke-width="2" stroke="url(#metalSheen)"/>
+                <circle cx="140" cy="85" r="12" fill="url(#gemGlow)" stroke="none"/>
+                <circle cx="140" cy="85" r="8" stroke-width="1.5"/>
+                <text x="100" y="185" text-anchor="middle" fill="#10B981" font-size="10" font-family="monospace">pair 12mm each</text>
+                <line x1="45" y1="183" x2="155" y2="183" stroke="#10B981" stroke-width="0.5" stroke-dasharray="2,2"/>
+            </g>
+        </svg>''',
+        
+        "bracelet": f'''<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="gemGlow">
+                    <stop offset="0%" stop-color="#E8F4F8" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="#4A7890" stop-opacity="0.2"/>
+                </radialGradient>
+                <linearGradient id="metalSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="{colors['stroke']}" stop-opacity="0.3"/>
+                    <stop offset="50%" stop-color="{colors['stroke']}" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="{colors['fill']}" stop-opacity="0.3"/>
+                </linearGradient>
+            </defs>
+            <rect width="200" height="200" fill="#050C08"/>
+            <g stroke="{colors['stroke']}" fill="none">
+                <ellipse cx="100" cy="100" rx="60" ry="40" stroke-width="2" stroke="url(#metalSheen)"/>
+                <ellipse cx="100" cy="100" rx="60" ry="40" stroke-width="1" stroke="#0D2018" stroke-dasharray="3,3"/>
+                <circle cx="100" cy="70" r="10" fill="url(#gemGlow)" stroke="none"/>
+                <circle cx="100" cy="70" r="7" stroke-width="1.5"/>
+                <text x="100" y="185" text-anchor="middle" fill="#10B981" font-size="10" font-family="monospace">60mm circumference</text>
+                <line x1="45" y1="183" x2="155" y2="183" stroke="#10B981" stroke-width="0.5" stroke-dasharray="2,2"/>
+            </g>
+        </svg>''',
+        
+        "brooch": f'''<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="gemGlow">
+                    <stop offset="0%" stop-color="#E8F4F8" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="#4A7890" stop-opacity="0.2"/>
+                </radialGradient>
+                <linearGradient id="metalSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="{colors['stroke']}" stop-opacity="0.3"/>
+                    <stop offset="50%" stop-color="{colors['stroke']}" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="{colors['fill']}" stop-opacity="0.3"/>
+                </linearGradient>
+            </defs>
+            <rect width="200" height="200" fill="#050C08"/>
+            <g stroke="{colors['stroke']}" fill="none">
+                <polygon points="100,40 130,80 180,90 140,120 150,170 100,145 50,170 60,120 20,90 70,80" stroke-width="2" stroke="url(#metalSheen)"/>
+                <polygon points="100,40 130,80 180,90 140,120 150,170 100,145 50,170 60,120 20,90 70,80" stroke-width="1" stroke="#0D2018" stroke-dasharray="3,3"/>
+                <circle cx="100" cy="95" r="14" fill="url(#gemGlow)" stroke="none"/>
+                <circle cx="100" cy="95" r="10" stroke-width="1.5"/>
+                <text x="100" y="185" text-anchor="middle" fill="#10B981" font-size="10" font-family="monospace">starburst 40mm</text>
+                <line x1="45" y1="183" x2="155" y2="183" stroke="#10B981" stroke-width="0.5" stroke-dasharray="2,2"/>
+            </g>
+        </svg>''',
+        
+        "tiara": f'''<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="gemGlow">
+                    <stop offset="0%" stop-color="#E8F4F8" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="#4A7890" stop-opacity="0.2"/>
+                </radialGradient>
+                <linearGradient id="metalSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="{colors['stroke']}" stop-opacity="0.3"/>
+                    <stop offset="50%" stop-color="{colors['stroke']}" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="{colors['fill']}" stop-opacity="0.3"/>
+                </linearGradient>
+            </defs>
+            <rect width="200" height="200" fill="#050C08"/>
+            <g stroke="{colors['stroke']}" fill="none">
+                <path d="M 40 160 L 40 100 L 60 50 L 100 30 L 140 50 L 160 100 L 160 160 Z" stroke-width="2" stroke="url(#metalSheen)"/>
+                <path d="M 40 160 L 40 100 L 60 50 L 100 30 L 140 50 L 160 100 L 160 160 Z" stroke-width="1" stroke="#0D2018" stroke-dasharray="3,3"/>
+                <circle cx="100" cy="60" r="12" fill="url(#gemGlow)" stroke="none"/>
+                <circle cx="100" cy="60" r="8" stroke-width="1.5"/>
+                <text x="100" y="185" text-anchor="middle" fill="#10B981" font-size="10" font-family="monospace">crown 14mm</text>
+                <line x1="45" y1="183" x2="155" y2="183" stroke="#10B981" stroke-width="0.5" stroke-dasharray="2,2"/>
+            </g>
+        </svg>'''
+    }
+    
+    return templates.get(jewelry_type, templates["ring"])
+
+
 @router.post("/api/generate-svg", response_model=SVGResponse)
 def generate_svg_endpoint(req: SVGRequest) -> SVGResponse:
-    prompt = _build_prompt(req)
-    raw, model_used = _call_free_model(prompt)
-    svg = _extract_svg(raw)
+    try:
+        prompt = _build_prompt(req)
+        raw, model_used = _call_free_model(prompt)
+        svg = _extract_svg(raw)
 
-    if not svg:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Model ({model_used}) responded but returned no valid SVG content.",
-        )
-
-    return SVGResponse(svg=svg, model_used=model_used)
+        if not svg:
+            print(f"Model {model_used} returned invalid SVG, using fallback")
+            svg = _generate_fallback_svg(req.jewelry_type, req.metal)
+            model_used = "fallback"
+            
+        return SVGResponse(svg=svg, model_used=model_used)
+        
+    except Exception as e:
+        print(f"SVG generation error: {e}")
+        svg = _generate_fallback_svg(req.jewelry_type, req.metal)
+        return SVGResponse(svg=svg, model_used="fallback")
