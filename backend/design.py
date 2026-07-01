@@ -342,7 +342,8 @@ def generate_design(req: DesignRequest) -> FinalDesignPackage:
     )
 
     raw_json, model_used = call_openrouter_with_fallback(
-        messages, schema_name="jewelry_design", json_schema=DESIGN_JSON_SCHEMA
+        messages, schema_name="jewelry_design", json_schema=DESIGN_JSON_SCHEMA,
+        max_tokens=4000,
     )
 
     try:
