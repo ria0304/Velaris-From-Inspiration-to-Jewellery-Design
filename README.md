@@ -5,7 +5,7 @@
 <img src="https://img.shields.io/badge/FastAPI-Python-green?style=flat-square&logo=fastapi" />
 <img src="https://img.shields.io/badge/AI-OpenRouter%20Fallback%20Chain-purple?style=flat-square" />
 <img src="https://img.shields.io/badge/Storage-SQLite-blue?style=flat-square&logo=sqlite" />
-<img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-black?style=flat-square&logo=githubactions" />
+
 
 # Velaris — From Inspiration to Jewellery Design
 
