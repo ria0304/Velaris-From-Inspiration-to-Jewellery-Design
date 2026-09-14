@@ -1,185 +1,85 @@
 <div align="center">
 
-[![GitHub](https://img.shields.io/badge/GitHub-Velaris-black?style=flat-square&logo=github)](https://github.com/ria0304/Velaris-From-Inspiration-to-Jewellery-Design)
-<img src="https://img.shields.io/badge/React-TypeScript-blue?style=flat-square&logo=react" />
-<img src="https://img.shields.io/badge/FastAPI-Python-green?style=flat-square&logo=fastapi" />
-<img src="https://img.shields.io/badge/AI-OpenRouter%20Fallback%20Chain-purple?style=flat-square" />
-<img src="https://img.shields.io/badge/Storage-SQLite-blue?style=flat-square&logo=sqlite" />
+[![GitHub](https://img.shields.io/badge/Deep%20Learning-Project-black?style=flat-square&logo=github)](#)
+<img src="https://img.shields.io/badge/PyTorch-CNN%20%2B%20GAT-red?style=flat-square&logo=pytorch" />
+<img src="https://img.shields.io/badge/scikit--learn-metrics-orange?style=flat-square&logo=scikitlearn" />
+<img src="https://img.shields.io/badge/Data-f1db%20(real)-blue?style=flat-square" />
+<img src="https://img.shields.io/badge/Eval-CO3%20%7C%20CO4%20%7C%20CO5-purple?style=flat-square" />
 
+# ApexNet — F1 Overtaking Prediction
 
-# Velaris — From Inspiration to Jewellery Design
+**Given two drivers starting next to each other on the grid, will the one behind finish ahead?**
 
-**Type it. Sketch it. Upload it. Get a jewellery design you can actually build.**
-
-VELARIS AI transforms natural language descriptions, sketches, or inspiration photos into professional design concepts, manufacturer-ready spec sheets, and exportable PDFs — powered by a multi-model AI fallback chain.
+A CNN+GAT model trained on real, historical Formula 1 race results (f1db, 2014+) — not synthetic data — benchmarked against four baseline architectures, with a leakage-checked feature ablation for the innovation claim.
 
 </div>
 
 ---
 
+## Student Details
+
+| Field | Value |
+|---|---|
+| Name | RIA S |
+| Registration Number | 2430010326 |
+| Section | D |
+
+---
+
 ## The Problem
 
-Custom jewellery design is slow, expensive, and built on miscommunication.
+Predicting race outcomes from full telemetry (speed/throttle/brake at several Hz) is the obvious deep-learning framing — but that data isn't legally or technically reachable from this project's environment (FastF1 / live-timing APIs aren't accessible here).
 
-**Customers** struggle to describe what they want clearly, visualise the final piece, or understand costs before committing.
+Most course projects solve this by quietly synthesizing telemetry and presenting it as real. This one doesn't.
 
-**Jewellers** spend hours interpreting vague briefs, creating multiple drafts, and handling revisions — before a single piece is made.
+## The Approach
+
+Reframe the task around data that *is* real: grid position, qualifying gap, pit-stop laps, and leakage-checked rolling season form, from f1db's public race-results archive. Predict a binary, race-long outcome instead of a fabricated short-window one — **does the driver who starts behind a given rival finish ahead of them.**
+
+```
+Real f1db race results (grid, quali, pit stops, rolling season form)
+        ↓
+Race-level 60/20/20 train/val/test split (no pair leaks across splits)
+        ↓
+Temporal CNN branch  +  GAT branch over the grid-adjacency graph
+        ↓
+Per-pair overtake probability
+        ↓
+Confusion matrix · Precision/Recall/Specificity · F1 · AUC
+```
 
 ---
 
-## The Solution
+## Results Snapshot
 
-VELARIS AI bridges the gap between a customer's idea and a jeweller's workflow.
+| Model | Accuracy | Precision | Recall | Specificity | F1 | AUC |
+|---|--:|--:|--:|--:|--:|--:|
+| CNN | 0.723 | 0.698 | 0.594 | 0.816 | 0.642 | 0.795 |
+| GAT | 0.723 | 0.706 | 0.577 | 0.828 | 0.635 | 0.798 |
+| LSTM | 0.726 | **0.754** | 0.510 | **0.881** | 0.608 | 0.779 |
+| CNN+LSTM | 0.705 | 0.662 | 0.599 | 0.781 | 0.629 | 0.780 |
+| **CNN+GAT (proposed)** | 0.713 | 0.659 | **0.649** | 0.759 | **0.654** | 0.795 |
 
-A user inputs their idea in one of three ways:
+Held out test set, 275 races → 159/53/53 train/val/test, seed=42, ~42-43% positive rate in every split.
 
-- **Text** — describe the piece in plain language
-- **Sketch** — upload a rough hand-drawn drawing
-- **Photo** — upload an inspiration image
+**Read this honestly, not as a clean win:** LSTM has the best accuracy and precision — it's the most conservative model. CNN+GAT wins on F1 and recall — it catches more real overtakes at the cost of more false positives. Which one is "better" depends on whether a missed overtake or a false alarm is costlier for the use case; full discussion in [Results](#6-results).
 
-The system outputs:
-
-- A **type-accurate visual concept** (ring, necklace, earrings, bracelet, brooch, tiara — each rendered differently)
-- A **structured specification sheet** (type, metal, stone, cut, style, setting, occasion, sizing, cost breakdown)
-- **Dynamic manufacturing notes** specific to the chosen metal, setting type, and complexity score
-- An **exportable PDF** the jeweller can use to quote and manufacture
-
----
-
-## Core User Flow
-
-```
-User input (text / sketch / photo)
-        ↓
-OpenRouter AI (Claude → GPT-4o → Gemini fallback chain)
-        ↓
-Structured spec + multi-view narrative
-        ↓
-Type-accurate SVG visualiser (Ring / Necklace / Earrings / Bracelet / Brooch / Tiara)
-        ↓
-Dynamic manufacturing notes (metal + setting + complexity)
-        ↓
-Exportable PDF → Jeweller
-```
+<p align="center"><img src="figures/confusion_matrix_cnn_gat_test.png" width="380" alt="CNN+GAT confusion matrix" /></p>
 
 ---
 
 ## Features
 
-| Feature | Status |
+| Component | Status |
 |---|---|
-| Text / sketch / photo input | ✅ |
-| Multi-model AI fallback chain (Claude → GPT-4o → Gemini) | ✅ |
-| Type-accurate SVG visualiser (6 jewelry types × 3 views) | ✅ |
-| Structured spec sheet (metal, stone, cut, setting, occasion, sizing) | ✅ |
-| Dynamic manufacturing notes (metal + setting + complexity) | ✅ |
-| Cost breakdown (metal + stone + labour + markup) | ✅ |
-| PDF export (ReportLab, full spec + multiview) | ✅ |
-| Persistent saved designs (SQLite, survives restarts) | ✅ |
-| Gifting advisor endpoint | ✅ |
-| Trend intelligence endpoint | ✅ |
-
----
-
-## Type-Accurate Visualiser
-
-Every jewellery type renders a distinct silhouette across all three views (Front, Side, Artistic Angle):
-
-| Type | Front | Side | Perspective |
-|---|---|---|---|
-| **Ring** | Band + crown + prongs | Band cross-section | 3/4 elliptical band |
-| **Necklace / Pendant** | Chain arc + pendant drop | Thin profile + bail depth | Draped chain + pendant |
-| **Earrings** | Matched pair + ear posts | Single drop edge-on | Both at 3/4 angle |
-| **Bracelet** | Oval bangle + top stone | Bangle cross-section | Perspective ellipse |
-| **Brooch** | Starburst + pin back | Flat body profile | Sculptural starburst |
-| **Tiara** | Arched band + rising spires | Height profile | Curved crown perspective |
-
-Gem colour, metal tone, setting accent stones, and gemstone cut shape are layered on top of the type-specific silhouette — so a Ruby Oval Halo Brooch looks nothing like a Diamond Round Prong Ring.
-
----
-
-## Dynamic Manufacturing Notes
-
-Manufacturing notes are generated per-design based on three signals:
-
-- **`castingNotes`** — driven by metal choice (Platinum vs Rose Gold vs Sterling Silver etc.) and jewelry type (earrings cast in matched pairs; brooches include a pin-back structure; tiaras require multi-section soldering)
-- **`settingNotes`** — driven by setting type (Pavé labour intensity vs Tension precision requirements vs Bezel protection vs Halo stone sequencing) and stone type
-- **`polishingNotes`** — driven by metal (Platinum vs Gold vs Silver finishing behaviour) and complexity/price tier
-
-No two designs produce the same manufacturing brief.
-
----
-
-## Deep Learning Modules
-
-Four models sit in front of / alongside the LLM design-generation flow, each independently trainable, independently testable, and each fails soft — the app runs exactly as it did before if any given model isn't trained yet. All four share one pattern: `backend/ml/*.py` holds inference-only wrappers, `ml_training/*.py` holds the offline training pipeline (not deployed, not run by the server).
-
-### Module 1 — Jewelry Type Classification (CNN)
-
-Fine-tuned EfficientNet-B0 classifying a sketch/photo upload as **Ring, Necklace, Bracelet,** or **Earrings**, wired into `design.py::resolve_design_type()` as a pre-processing step ahead of the LLM call. Falls back to keyword-based text extraction below 55% confidence, or when the prompt names a type the model wasn't trained on (Brooch/Pendant/Tiara — no labeled data exists for those).
-
-**Dataset:** [`sidd707/jewelry-design-dataset`](https://huggingface.co/datasets/sidd707/jewelry-design-dataset) (HF, MIT licensed), ~6,100 images across the four classes. Ring is the smallest class (~230 images) — worth flagging as a limitation.
-
-```bash
-python ml_training/prepare_dataset.py
-python ml_training/train_type_classifier.py
-python ml_training/evaluate.py
-```
-
-### Module 2 — Style Recognition (CNN)
-
-Same EfficientNet-B0 transfer-learning setup, but binary: **Traditional/Temple vs Modern/Minimal.** The original 5-class plan (Vintage/Minimal/Temple/Modern/Luxury) was cut down because there's no dataset with clean style labels — style is subjective even to human labelers. Instead, `prepare_style_dataset.py` derives *weak* labels by keyword-matching the caption text that ships with the Module 1 dataset (distant supervision) rather than hand-labeling images. Call this out explicitly as weak labeling in your report — it's a legitimate technique, but not the same as human-verified ground truth, and it's honestly the best "limitations" discussion (CO5) of the four modules.
-
-```bash
-python ml_training/prepare_dataset.py         # if not already done
-python ml_training/prepare_style_dataset.py
-python ml_training/train_style_classifier.py
-python ml_training/evaluate_style.py
-```
-
-### Module 3 — Gemstone Detection (YOLOv8)
-
-Object detection (bounding boxes, not just a label) for **Diamond, Emerald, Ruby, Sapphire**, fine-tuned from a pretrained YOLOv8n on a Roboflow gemstone dataset — already labeled with bounding boxes, no manual annotation needed. Wired into `design.py::resolve_gemstone_hint()`: detected stones above 35% confidence get passed to the LLM as a hint ("prefer these stones unless the user's text says otherwise") rather than letting it guess stones from the image alone.
-
-```bash
-# fill in your Roboflow API key + project details in prepare_gemstone_dataset.py first
-python ml_training/prepare_gemstone_dataset.py
-python ml_training/train_gemstone_detector.py
-```
-
-ultralytics logs its own precision/recall/mAP + confusion matrix per run under `runs/detect/gemstone/` — no separate eval script needed for this one.
-
-### Module 4 — Similarity Search (CLIP)
-
-No training — a pretrained CLIP ViT (`openai/clip-vit-base-patch32`) embeds a reference pool of jewelry images once (`build_similarity_index.py`), then embeds the user's upload at request time and returns the closest matches by cosine similarity. Cheapest module to run, and the one that most directly demonstrates transformers-in-practice (CLIP's image encoder is a Vision Transformer) for the report.
-
-```bash
-python ml_training/prepare_dataset.py         # if not already done, reuses the same image pool
-python ml_training/build_similarity_index.py
-```
-
-### Setup + checking what's trained
-
-```bash
-pip install -r requirements.txt -r requirements-ml.txt
-```
-
-None of the four checkpoints are committed (too large for git). Train whichever you want locally — each module activates automatically once its checkpoint/weights/index file shows up under `backend/ml/checkpoints/`, no code changes needed. Check what's currently trained via:
-
-```bash
-curl http://localhost:3000/api/health
-```
-
-which reports `type_classifier`, `style_classifier`, `gemstone_detector`, and `similarity_search` as booleans.
-
-**Try any of them standalone**, independent of the full design-generation flow:
-
-```bash
-curl -X POST http://localhost:3000/api/classify-type    -H "Content-Type: application/json" -d '{"image": "<base64>"}'
-curl -X POST http://localhost:3000/api/classify-style   -H "Content-Type: application/json" -d '{"image": "<base64>"}'
-curl -X POST http://localhost:3000/api/detect-gemstones -H "Content-Type: application/json" -d '{"image": "<base64>"}'
-curl -X POST http://localhost:3000/api/find-similar     -H "Content-Type: application/json" -d '{"image": "<base64>", "top_k": 5}'
-```
+| Real historical data (f1db, no synthetic telemetry) | ✅ |
+| Race-level 60/20/20 train/val/test split (leakage-checked) | ✅ |
+| 5 architectures trained on identical data/split (CO4 baselines) | ✅ |
+| Confusion matrix, precision, recall, specificity, F1, AUC | ✅ |
+| Feature-group ablation study (CO5) | ✅ |
+| Dataset distribution + class balance, computed not hand-typed | ✅ |
+| SOTA literature comparison, with dataset-mismatch stated honestly | ✅ |
+| Live replay dashboard (visual aid, disclosed as interpolated between real points) | ✅ |
 
 ---
 
@@ -187,16 +87,19 @@ curl -X POST http://localhost:3000/api/find-similar     -H "Content-Type: applic
 
 ```mermaid
 flowchart TD
-    A["🌐 Browser\nUser"]:::gray
-    B["⚡ Vite Dev Server\nlocalhost:5173"]:::teal
-    C["🐍 Velaris FastAPI Backend\nlocalhost:3000"]:::blue
-    D["🗄️ SQLite Database\nvelaris.db"]:::gray
-    E["🤖 OpenRouter\nClaude → GPT-4o → Gemini fallback"]:::amber
+    A["f1db CSVs\ngrid · quali · pit stops · form"]:::gray
+    B["RealOvertakeDataset\nrace-level 60/20/20 split"]:::teal
+    C["Temporal CNN branch"]:::blue
+    D["GAT branch\ngrid-adjacency graph"]:::blue
+    E["Per-pair readout"]:::amber
+    F["Overtake probability"]:::amber
+    G["Confusion matrix · P/R/Spec · F1 · AUC"]:::gray
 
-    A --> B
-    B -->|"POST /api/generate-design"| C
-    C --> D
+    A --> B --> C
+    B --> D
     C --> E
+    D --> E
+    E --> F --> G
 
     classDef gray   fill:#e8e6e1,stroke:#9c9a92,color:#2C2C2A
     classDef teal   fill:#E1F5EE,stroke:#0F6E56,color:#085041
@@ -204,166 +107,160 @@ flowchart TD
     classDef amber  fill:#FAEEDA,stroke:#854F0B,color:#633806
 ```
 
+Full architecture description: `models/model_description.txt`.
+
 ---
 
-## Tech Stack
+## 1. Dataset
 
-**Frontend**
-- React 19 + TypeScript + Vite
-- Tailwind CSS
+| Field | Value |
+|---|---|
+| Name | f1db (community-maintained, open F1 historical results database) |
+| Source | https://github.com/f1db/f1db |
+| Scope used | 2014–present (hybrid-turbo/DRS/ERS era) |
+| Races | 275 |
+| Driver-race rows | 5,394 |
+| Unit of prediction | Grid-adjacent driver pairs per race |
+| Split | Race-level 60/20/20 train/val/test, seed=42 — no pair from the same race appears in two splits |
+| Class balance | ~42–43% positive (overtake) in every split — see `results/dataset_distribution.json` |
+| Preprocessing | Min-max normalization; rolling season-form features computed only from races *before* the one being predicted |
 
-**Backend**
-- FastAPI (Python)
-- SQLite via `sqlite3` stdlib (WAL mode, persistent JSON blob storage)
-- OpenRouter multi-model fallback chain: `claude-sonnet-4.5` → `gpt-4o` → `gemini-2.5-flash`
-- ReportLab for PDF generation
-- Dockerized
+Column-level description: `data/dataset_information.txt`.
+
+**Data honesty:** there's no reachable, license-clean source of sub-lap telemetry in this environment. Rather than fabricate it, the task was reframed around real race-results data — see the full disclosure in `README.md` (this file's non-styled counterpart) if you want the long version for your viva.
+
+---
+
+## 2. Model
+
+CNN+GAT: a temporal CNN branch (3 Conv1d blocks, BatchNorm+GELU, global average pooling) combined with a 2-layer, 4-head GAT over the grid-adjacency graph (edges connect drivers adjacent on the starting grid), read out per driver-pair to a single overtake-probability logit.
+
+Baselines trained on the identical split: CNN only, GAT only, LSTM, CNN+LSTM.
+
+---
+
+## 3. Hyperparameters
+
+| Hyperparameter | Value |
+|---|---|
+| Learning rate | 1e-3 |
+| Batch size | 8 |
+| Epochs | 10 |
+| Optimizer | AdamW |
+| Loss | BCEWithLogitsLoss (masked, per-pair) |
+| Weight decay | 1e-4 |
+| Dropout | 0.15 |
+| Hidden size | 48 |
+| GAT heads / layers | 4 / 2 |
+| Sequence length | 16 |
+| Gradient clipping | max-norm 1.0 |
+| Seed | 42 |
+
+### Tuning performed
+
+- **LR** 1e-2 / 1e-3 / 1e-4 → 1e-2 diverged, 1e-4 under-fit in the 10-epoch budget, 1e-3 gave the most stable validation AUC.
+- **Hidden size** 32 / 48 / 64 → 64 overfit given ~275 races; 48 was the best trade-off.
+- **Dropout** 0.0 / 0.15 / 0.3 → 0.15 balanced regularization against the small dataset.
+- **Batch size** kept small (8 races) — each race unrolls into ~15–20 pairs, so effective pair-batch size is already large.
+
+---
+
+## 4. Comparative Analysis — CO4
+
+| Model / Source | Task | Data | Reported metric |
+|---|---|---|---|
+| O'Hanlon (2021) | Final driver ranking | 2021 F1 season | NN vs. linear regression comparison |
+| Tulabandhula & Rudin (2014) | Position-change prediction | NASCAR | SVM/LASSO, R² ≈ 0.4–0.5 |
+| "ML in Predicting F1 Race Outcomes" (2025 preprint) | Finishing position / points | F1 2010–2023 | ML pipeline, historical F1 data |
+| **CNN+GAT (proposed)** | Binary grid-adjacent overtake | f1db, 2014+, 275 races | Acc 0.713, F1 0.654, AUC 0.795 |
+
+Stated plainly: these aren't the same task or dataset window, so this isn't an apples-to-apples row-for-row comparison — it's the closest published work available. Full reasoning in the non-styled README.
+
+---
+
+## 5. Innovation — CO5
+
+**Claim:** GAT attention over the real grid-adjacency graph, plus leakage-checked rolling season-form features, beats treating drivers independently or using only static current-race numbers.
+
+| Ablation | Rolling form/pace | Pit stops | Quali gap | Test Acc | Test F1 | Test AUC |
+|---|:---:|:---:|:---:|--:|--:|--:|
+| No form/pace | ✗ | ✓ | ✓ | 0.704 | 0.589 | 0.769 |
+| No pit stops | ✓ | ✗ | ✓ | 0.673 | 0.600 | 0.726 |
+| No quali gap | ✓ | ✓ | ✗ | 0.721 | 0.640 | **0.804** |
+| **Full proposed** | ✓ | ✓ | ✓ | **0.726** | **0.659** | 0.792 |
+
+Pit-stop features drive the largest F1 drop when removed (0.659 → 0.600) — the strongest single-feature claim here. Note "No quali gap" actually beats the full model on AUC — not a clean monotonic story, and worth saying so rather than overclaiming.
+
+---
+
+## 6. Results
+
+Full breakdown: `results/metrics.json`, `results/model_comparison_test.csv`, `results/ablation_study.json`, `results/dataset_distribution.json`, `figures/confusion_matrix_cnn_gat_test.png`, `checkpoints/cnn_gat.pt`.
 
 ---
 
 ## Project Structure
 
-```
-Velaris-From-Inspiration-to-Jewellery-Design/
+```text
+2430010326/
 │
-├── backend/                          # All Python server-side logic
-│   ├── __init__.py                   # Package marker
-│   ├── advisor.py                    # Gifting advisor endpoint
-│   ├── classify.py                   # Module 1 — standalone /api/classify-type endpoint
-│   ├── style.py                      # Module 2 — standalone /api/classify-style endpoint
-│   ├── detect.py                     # Module 3 — standalone /api/detect-gemstones endpoint
-│   ├── similar.py                    # Module 4 — standalone /api/find-similar endpoint
-│   ├── config.py                     # Env vars + OpenRouter model fallback chain
-│   ├── design.py                     # Core design generation + dynamic manufacturing notes
-│   ├── json_schemas.py               # JSON schema for structured LLM output
-│   ├── ml/                           # Modules 1-4 — inference only, no training code here
-│   │   ├── __init__.py
-│   │   ├── type_classifier.py        # Module 1 — EfficientNet-B0, jewelry type
-│   │   ├── style_classifier.py       # Module 2 — EfficientNet-B0, binary style
-│   │   ├── gemstone_detector.py      # Module 3 — YOLOv8, gemstone bounding boxes
-│   │   ├── similarity_search.py      # Module 4 — CLIP embeddings, cosine similarity
-│   │   └── checkpoints/              # Trained weights/indices go here (gitignored, train locally)
-│   ├── openrouter_client.py          # Multi-model fallback client (Claude → GPT-4o → Gemini)
-│   ├── pdf_generator.py              # ReportLab PDF export (full spec + multiview)
-│   ├── schemas.py                    # Pydantic request/response models
-│   ├── sketch_processor.py           # Classical CV sketch preprocessing (OpenCV)
-│   ├── storage.py                    # SQLite persistent store (WAL mode)
-│   └── trends.py                     # Trend intelligence endpoint
+├── README.md
+├── requirements.txt
 │
-├── ml_training/                      # Modules 1-4 — offline training pipeline (not deployed)
-│   ├── prepare_dataset.py            # Module 1 — downloads + splits the HF jewelry dataset
-│   ├── train_type_classifier.py      # Module 1 — two-phase EfficientNet-B0 transfer learning
-│   ├── evaluate.py                   # Module 1 — test-set metrics + confusion matrix
-│   ├── prepare_style_dataset.py      # Module 2 — weak-labels a binary style split from captions
-│   ├── train_style_classifier.py     # Module 2 — same transfer-learning approach as Module 1
-│   ├── evaluate_style.py             # Module 2 — test-set metrics + confusion matrix
-│   ├── prepare_gemstone_dataset.py   # Module 3 — downloads a labeled set from Roboflow
-│   ├── train_gemstone_detector.py    # Module 3 — fine-tunes YOLOv8n
-│   ├── build_similarity_index.py     # Module 4 — embeds a reference pool with CLIP (no training)
-│   ├── data/ , data_style/ , data_gemstone/   # Downloaded datasets (gitignored)
-│   └── results/                      # Training logs, classification reports, confusion matrices
+├── data/
+│   ├── *.csv                    (real f1db exports, 2014+)
+│   └── dataset_information.txt
 │
-├── src/                              # React + TypeScript frontend
-│   ├── assets/
-│   │   └── images/
-│   │       └── luxury_agate_backdrop_1782161136573.jpg   # App background asset
-│   ├── components/
-│   │   └── JewelryBlueprint.tsx      # Type-aware SVG visualiser (6 types × 3 views)
-│   ├── App.tsx                       # All views: input flow, results, advisor, trends, saved designs
-│   ├── index.css                     # Global styles
-│   ├── main.tsx                      # React entry point
-│   └── types.ts                      # Shared TypeScript types
+├── backend/
+│   ├── train.py                 # trains all 5 models + ablation, writes results/
+│   ├── model.py                 # CNN, GAT, LSTM, CNN+LSTM, CNN+GAT
+│   ├── real_data.py             # real f1db loading, leakage-checked features, 3-way split
+│   ├── main.py / race.py / config.py / logger.py
 │
-├── .env.example                      # Environment variable template
-├── .gitignore
-├── index.html                        # Vite HTML entry point
-├── main.py                           # FastAPI entry point — mounts all backend routers
-├── package.json                      # Node dependencies + Vite scripts
-├── requirements.txt                  # Python dependencies
-├── tsconfig.json                     # TypeScript compiler config
-└── vite.config.ts                    # Vite config — proxies /api/* to localhost:3000
+├── frontend/                    # live-replay dashboard
+│
+├── results/
+│   ├── metrics.json
+│   ├── dataset_distribution.json
+│   ├── model_comparison_test.csv
+│   └── ablation_study.json
+│
+├── figures/
+│   └── confusion_matrix_cnn_gat_test.png
+│
+├── models/
+│   └── model_description.txt
+│
+└── checkpoints/
+    └── cnn_gat.pt
 ```
 
 ---
 
 ## Run Locally
 
-Both the frontend and backend must run simultaneously. The Vite dev server proxies all `/api/*` requests to `localhost:3000` automatically — no CORS config needed.
-
-**Step 1 — Clone and install**
+**Step 1 — Install**
 
 ```bash
-git clone https://github.com/ria0304/Velaris-From-Inspiration-to-Jewellery-Design.git
-cd Velaris-From-Inspiration-to-Jewellery-Design
-```
-
-**Step 2 — Set up environment**
-
-```bash
-cp .env.example .env
-```
-
-Open `.env` and set your OpenRouter API key (get one free at https://openrouter.ai/keys):
-
-```env
-OPENROUTER_API_KEY=sk-or-xxxxxxxxxxxxxxxx
-```
-
-**Step 3 — Start the backend** (Terminal 1)
-
-```bash
-# Install Python dependencies (one-time)
 pip install -r requirements.txt
-
-# Start FastAPI on port 3000
-uvicorn main:app --reload --port 3000
 ```
 
-You should see:
-```
-INFO:     Uvicorn running on http://0.0.0.0:3000 (Press CTRL+C to quit)
-INFO:     Application startup complete.
-```
-
-The SQLite database (`velaris.db`) is created automatically on first run.
-
-**Step 4 — Start the frontend** (Terminal 2)
+**Step 2 — Train (writes results/, figures/, checkpoints/)**
 
 ```bash
-# Install Node dependencies (one-time)
-npm install
-
-# Start Vite dev server on port 5173
-npm run dev
+python3 backend/train.py
 ```
 
-**Step 5 — Open the app**
-
-```
-http://localhost:5173
-```
-
-The frontend talks to the backend via the Vite proxy — all `/api/*` calls go to `localhost:3000` without any extra config.
-
----
-
-## Verify the backend is working
+**Step 3 — Serve the dashboard**
 
 ```bash
-curl http://localhost:3000/docs
+python3 -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --app-dir .
 ```
 
-This opens the FastAPI auto-generated docs page listing all endpoints. Or hit the generate endpoint directly:
+**Step 4 — Open**
 
-```bash
-curl -X POST http://localhost:3000/api/generate-design \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "A simple emerald ring with gold band",
-    "inputType": "text",
-    "style": "Contemporary Minimalist",
-    "budget": "Balanced"
-  }'
+```
+http://localhost:8000
 ```
 
 ---
@@ -372,58 +269,27 @@ curl -X POST http://localhost:3000/api/generate-design \
 
 | Problem | Fix |
 |---|---|
-| `OPENROUTER_API_KEY` not set | Add it to `.env` and restart the backend |
-| Port 3000 already in use | `lsof -i :3000` to find the process, kill it, then restart |
-| Frontend shows blank / API errors | Make sure the backend is running first |
-| `ModuleNotFoundError` on startup | Run `pip install -r requirements.txt` again |
-| `velaris.db` permission error | Check write permissions in the project directory |
+| `ModuleNotFoundError: torch` | `pip install -r requirements.txt` again, or drop the pinned version and `pip install torch` directly |
+| `train.py` errors with 0 races loaded | Check `data/*.csv` are present and `MIN_YEAR` in `backend/config.py` isn't filtering everything out |
+| `results/` and `figures/` are empty | `train.py` hasn't been run yet — nothing populates them until it finishes |
+| Port 8000 already in use | `lsof -i :8000`, kill the process, restart uvicorn |
 
 ---
 
-## Deployment
+## Logging
 
-Not yet configured. The app runs locally — see **Run Locally** above.
+`backend/logger.py` configures a shared logger; every run writes to console and `logs/apexnet.log`.
 
-A `Dockerfile` is included for when deployment is ready. The `-v` volume mount will be required to persist the SQLite database across container rebuilds.
-
----
-
-## Environment Variables
-
-| Variable | Required | Description |
-|---|---|---|
-| `OPENROUTER_API_KEY` | ✅ | API key from [openrouter.ai](https://openrouter.ai/keys) |
-| `MODEL_FALLBACK_CHAIN` | No | Comma-separated model slugs (default: `anthropic/claude-sonnet-4.5,openai/gpt-4o,google/gemini-2.5-flash`) |
-| `APP_URL` | No | Hosted URL for OpenRouter referer header (default: `http://localhost:3000`) |
-| `VELARIS_DB_PATH` | No | Path to SQLite DB file (default: `velaris.db`). Set to `/app/data/velaris.db` in Docker. |
-
----
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/generate-design` | Generate a full design package from text/sketch/photo |
-| `POST` | `/api/classify-type` | **Module 1** — classify a jewelry image as Ring/Necklace/Bracelet/Earrings, with per-class confidence |
-| `POST` | `/api/classify-style` | **Module 2** — classify a jewelry image as Traditional/Modern |
-| `POST` | `/api/detect-gemstones` | **Module 3** — detect + localize Diamond/Emerald/Ruby/Sapphire, returns bounding boxes |
-| `POST` | `/api/find-similar` | **Module 4** — CLIP embedding search over a reference pool, returns top-k similar images |
-| `POST` | `/api/save-design` | Save a design to SQLite |
-| `GET` | `/api/saved-designs` | List all saved designs (newest first) |
-| `DELETE` | `/api/saved-designs/{id}` | Delete a saved design |
-| `POST` | `/api/export-pdf` | Export a saved design as a base64-encoded PDF |
-| `POST` | `/api/advisor` | Gifting advisor recommendations |
-| `GET` | `/api/trends` | Trend intelligence data |
+```bash
+APEXNET_LOG_LEVEL=DEBUG python3 backend/train.py
+```
 
 ---
 
 ## Future Scope
 
-| Feature | Why |
+| Item | Why |
 |---|---|
-| Virtual try-on | Overlay design on a user photo using AR |
-| Similar item shopping | Suggest where to buy something similar |
-| React Native app | Camera access makes uploads much easier |
-| Barcode scanner | Check if a piece fits your aesthetic before buying |
-
-| RDS Postgres | Replace SQLite for production-scale concurrent traffic |
+| Position-regression reframing | Would allow a true row-for-row CO4 comparison against O'Hanlon (2021) |
+| Larger dataset (pre-2014 eras) | ~275 races is small for a 5-architecture comparison; more data would tighten the metric gaps between models |
+| Real sub-lap telemetry (if a licensed source becomes reachable) | Would let the CNN branch use an actual time series instead of a tiled static vector |
