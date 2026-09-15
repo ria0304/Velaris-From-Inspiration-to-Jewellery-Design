@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+node_modules/
+dist/
+.env
+velaris.db
+*.db
+ml_training/data/
+ml_training/data_style/
+ml_training/data_gemstone/
+ml_training/results/
+backend/ml/checkpoints/*.pt
+backend/ml/checkpoints/*.npy
+backend/ml/checkpoints/*.json
+!backend/ml/checkpoints/.gitkeep
+runs/
