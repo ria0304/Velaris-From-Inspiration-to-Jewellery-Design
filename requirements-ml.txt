@@ -1,0 +1,11 @@
+# Training-only dependencies for ml_training/ scripts.
+# NOT needed on the deployed backend (inference deps — torch, torchvision,
+# ultralytics, transformers — already live in requirements.txt).
+#
+# Usage:
+#   pip install -r requirements.txt -r requirements-ml.txt --break-system-packages
+
+huggingface_hub>=0.23.0   # Module 1 & 2 — dataset download
+scikit-learn>=1.4.0       # Module 1 & 2 — evaluation metrics
+matplotlib>=3.8.0         # Module 1 & 2 — confusion matrix plots
+roboflow>=1.1.0           # Module 3 — gemstone dataset download
