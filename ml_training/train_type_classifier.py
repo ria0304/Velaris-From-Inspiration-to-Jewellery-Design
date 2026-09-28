@@ -37,8 +37,8 @@ RESULTS_DIR = Path(__file__).parent / "results"
 
 IMG_SIZE = 224
 BATCH_SIZE = 32
-EPOCHS_HEAD = 5        # phase 1: frozen backbone, train classifier head only
-EPOCHS_FINE_TUNE = 10  # phase 2: unfreeze everything, fine-tune end to end
+EPOCHS_HEAD = 1        # phase 1: frozen backbone, train classifier head only
+EPOCHS_FINE_TUNE = 1   # phase 2: unfreeze everything, fine-tune end to end
 LR_HEAD = 1e-3
 LR_FINE_TUNE = 1e-4
 

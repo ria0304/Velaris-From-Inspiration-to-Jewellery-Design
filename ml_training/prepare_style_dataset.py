@@ -48,9 +48,11 @@ SEED = 42
 
 TRADITIONAL_KEYWORDS = (
     "temple", "traditional", "kundan", "polki", "antique", "heritage", "ethnic", "vintage",
+    "classic", "ornate", "intricate",
 )
 MODERN_KEYWORDS = (
-    "minimal", "modern", "contemporary", "sleek", "geometric", "simple", "clean lines",
+    "minimal", "modern", "contemporary", "sleek", "geometric", "simple", "clean", "lines",
+    "minimalist", "fusion", "art deco", "retro",
 )
 
 
