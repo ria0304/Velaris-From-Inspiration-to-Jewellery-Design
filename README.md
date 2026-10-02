@@ -9,9 +9,10 @@
 
 # Velaris — From Inspiration to Jewellery Design
 
+
 **Type it. Sketch it. Upload it. Get a jewellery design you can actually build.**
 
-VELARIS AI transforms natural language descriptions, sketches, or inspiration photos into design concepts, jeweller-ready spec sheets, parametric CAD views, and exportable PDFs — powered by a multi-model AI fallback chain and four deep learning modules.
+VELARIS transforms natural language descriptions, sketches, or inspiration photos into design concepts, jeweller-ready spec sheets, parametric CAD views, and exportable PDFs — powered by a multi-model AI fallback chain and four deep learning modules.
 
 </div>
 
