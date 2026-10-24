@@ -40,7 +40,7 @@ A user inputs their idea in one of three ways:
 
 The system outputs:
 
-- A **type-accurate visual concept** (ring, necklace, pendant, earrings, bracelet, brooch, tiara — each rendered differently, in four views)
+- A **type-accurate visual concept** (ring, necklace, pendant, earrings, bracelet, brooch, tiara — each rendered differently; four views on the presentation board and PDF, three in the in-app viewer)
 - A **structured specification sheet** (type, metal, stone, cut, style, setting, occasion, sizing, cost breakdown)
 - **Dynamic manufacturing notes** specific to the chosen metal, setting type, and complexity score
 - A **presentation board** combining CAD vector views with realistic renders
@@ -51,7 +51,7 @@ The system outputs:
 - `model.py` — canonical `JewelryModel` in mm space: single source of truth for SVG views, DXF, and dims table. Per-cut stone proportions (Round/Oval/Pear/Marquise/Emerald/Cushion/Princess), prong/bezel/halo/cathedral setting components with clearance rules, `validate()` rejecting bad carat/dims.
 - `__init__.py` — deterministic SVG renderer draws **the same `model.primitives(view)`** used by `to_dxf_entities()` and `dims()` (styling/scale are view-only transforms). `/api/cad-svg` is the authoritative technical geometry; `/api/generate-svg` is the AI concept renderer; realistic renders are visual interpretation only. Exports are **concept drawings — not manufacturing-validated**.
 - `router.py` — `CadRequest` accepts optional `motif`, `ring_size_mm`, `stone_length/width_mm`, all wired into the model; both CAD endpoints return 422 on invalid input.
-- DXF uses `ezdxf` (R2010, `$INSUNITS=4` mm, layers `BODY/STONE/SETTING/CONSTRUCTION/LABEL`) with R12-text fallback; round-trip verified with `ezdxf.read` + bbox agreement (excluding `LABEL`).
+- DXF (`to_dxf_entities`) writes **every primitive of the model for the requested view**, not just a band and stone — so a brooch exports its pin assembly on `CONSTRUCTION`, a ring its shank and setting, and so on. It uses `ezdxf` (R2010, `$INSUNITS=4` mm, layers `BODY/STONE/SETTING/CONSTRUCTION/LABEL`) with a hand-written R12-text fallback when `ezdxf` is missing. Each file carries a `CONCEPT - NOT FOR MANUFACTURE` label. Round-trip is covered by tests (`ezdxf.read` + bbox agreement, excluding `LABEL`). It is 2D only: no solids, no facet geometry.
 
 ---
 
@@ -93,7 +93,7 @@ Exportable PDF (+ DXF attachment) → Jeweller
 | Dynamic manufacturing notes (metal + setting + complexity) | ✅ |
 | Cost breakdown (metal + stone + labour + markup) | ✅ |
 | PDF export (ReportLab: multiview, realistic previews, technical specs, CAD data) | ✅ |
-| Minimal DXF export (band + stone circles at true mm size, embedded in the PDF) | ✅ |
+| 2D DXF export (per-type model geometry at true mm scale, layered, embedded in the PDF and available at `/api/cad-dxf`) | ✅ |
 | Persistent saved designs (SQLite, survives restarts) | ✅ |
 | Gifting advisor endpoint | ✅ |
 | Trend intelligence endpoint | ✅ |
@@ -127,7 +127,7 @@ Gem colour, metal tone, setting accents (halo, bezel) and gemstone cut shape are
 
 Results are cached on disk by a hash of the spec, so an identical design is never generated twice. `/api/render-beauty` reports which path produced the image in the `X-Render-Source` header (`diffusion`, `diffusion-cached`, or `procedural`).
 
-If the CAD engine itself raises, `/api/generate-svg` falls back to a free-model OpenRouter chain and finally to a static template.
+If the CAD engine itself raises, `/api/generate-svg` falls back to a **separate, hard-coded** free-model OpenRouter chain in `backend/svg_generator.py` (`gemini-2.0-flash-exp` → `gemma-2-2b-it:free` → `phi-2:free` → `qwen3-coder:free` → `openrouter/auto`) and finally to a static template. This chain is **not** controlled by `MODEL_FALLBACK_CHAIN`, which only governs design generation.
 
 ---
 
@@ -273,6 +273,7 @@ flowchart LR
 **Frontend**
 - React 19 + TypeScript + Vite
 - Tailwind CSS 4
+- `motion` (animation) and `lucide-react` (icons)
 - DOMPurify (all backend-supplied SVG is sanitized before rendering)
 
 **Backend**
@@ -280,7 +281,8 @@ flowchart LR
 - SQLite via `sqlite3` stdlib (WAL mode, persistent JSON blob storage)
 - OpenRouter multi-model fallback chain (default: `gemini-2.0-flash-lite` → `llama-3.2-3b-instruct` → `mistral-7b-instruct` → `gemini-2.5-flash`, overridable via `MODEL_FALLBACK_CHAIN`)
 - PyTorch / torchvision (EfficientNet-B0), ultralytics (YOLOv8), transformers (CLIP, OWL-ViT)
-- Pillow + OpenCV + svglib for rendering and image processing
+- Pillow + OpenCV + svglib + SciPy for rendering and image processing
+- `ezdxf` for DXF export
 - ReportLab + pypdf for PDF generation and DXF attachment
 
 ---
@@ -297,7 +299,7 @@ Velaris-From-Inspiration-to-Jewellery-Design/
 │   ├── style.py                      # Module 2 — standalone /api/classify-style endpoint
 │   ├── detect.py                     # Module 3 — standalone /api/detect-gemstones endpoint
 │   ├── similar.py                    # Module 4 — standalone /api/find-similar endpoint
-│   ├── config.py                     # Env vars + OpenRouter model fallback chain
+│   ├── config.py                     # Env vars + OpenRouter model fallback chain (HF helpers here are unused)
 │   ├── design.py                     # Core design generation + dynamic manufacturing notes
 │   ├── json_schemas.py               # JSON schema for structured LLM output
 │   ├── ml/                           # Modules 1-4 — inference only, no training code here
@@ -308,8 +310,9 @@ Velaris-From-Inspiration-to-Jewellery-Design/
 │   │   ├── similarity_search.py      # Module 4 — CLIP embeddings, cosine similarity
 │   │   └── checkpoints/              # Trained weights/indices go here (gitignored, train locally)
 │   ├── cad/                          # Parametric CAD engine
-│   │   ├── __init__.py               # Shared mm-space params, SVG renderers, DXF export
-│   │   └── router.py                 # /api/cad-svg, /api/cad-dxf
+│   │   ├── __init__.py               # CadParams, SVG renderers (incl. phoenix motif), DXF export
+│   │   ├── model.py                  # JewelryModel — canonical mm-space geometry + validation
+│   │   └── router.py                 # /api/cad-svg, /api/cad-dxf (422 on invalid input)
 │   ├── render/                       # Realistic PNG renderer (procedural PIL)
 │   │   ├── __init__.py
 │   │   └── router.py                 # /api/render-realistic
@@ -317,7 +320,7 @@ Velaris-From-Inspiration-to-Jewellery-Design/
 │   │   ├── __init__.py               # HF text-to-image → PIL fallback
 │   │   └── router.py                 # /api/render-beauty, /api/beauty-prompt
 │   ├── presentation.py               # /api/presentation-board — composes CAD + renders + specs
-│   ├── svg_generator.py              # /api/generate-svg — CAD first, LLM/template fallback
+│   ├── svg_generator.py              # /api/generate-svg — CAD first, then its own free-model chain, then template
 │   ├── openrouter_client.py          # Multi-model fallback client
 │   ├── huggingface_client.py         # Legacy text-generation fallback (not currently called)
 │   ├── pdf_generator.py              # ReportLab PDF export (multiview, previews, specs, DXF)
@@ -353,8 +356,8 @@ Velaris-From-Inspiration-to-Jewellery-Design/
 │   └── vite-env.d.ts                 # Vite type shims
 │
 ├── tests/
-│   ├── test_smoke.py                 # Health + save/list/delete + PDF-missing (no keys, no checkpoints)
-│   └── test_pipeline.py              # CAD / render / beauty / board / PDF, plus live ML tests
+│   ├── test_smoke.py                 # Health, save/list/delete, oversize rejection, PDF-missing (no keys, no checkpoints)
+│   └── test_pipeline.py              # CAD + DXF round-trip, SVG sanitising, render / beauty / board / PDF, plus live ML tests
 │
 ├── phoenix_brooch.pdf                # Sample PDF export
 ├── .env.example                      # Environment variable template
@@ -409,7 +412,7 @@ INFO:     Uvicorn running on http://0.0.0.0:3000 (Press CTRL+C to quit)
 INFO:     Application startup complete.
 ```
 
-The SQLite database (`velaris.db`) is created automatically on first run. Without trained checkpoints the ML modules log a warning and stay inactive — that is expected.
+`python main.py` also works (it starts uvicorn on port 3000 with reload). The SQLite database (`velaris.db`) is created automatically on first run. Without trained checkpoints the ML modules log a warning and stay inactive — that is expected.
 
 **Step 4 — Start the frontend** (Terminal 2)
 
@@ -428,6 +431,8 @@ http://localhost:5173
 ```
 
 The frontend talks to the backend via the Vite proxy — all `/api/*` calls go to `localhost:3000` without any extra config.
+
+Other frontend scripts: `npm run build` (production bundle to `dist/`), `npm run preview`, `npm run lint` (type-check only, `tsc --noEmit`), `npm run clean`.
 
 ---
 
@@ -500,6 +505,7 @@ Local-only. The app runs locally — see **Run Locally** above. `velaris.db` is 
 | `APP_URL` | No | Hosted URL for OpenRouter referer header (default: `http://localhost:3000`) |
 | `VELARIS_DB_PATH` | No | Path to SQLite DB file (default: `velaris.db`) |
 | `HUGGINGFACE_API_KEY` | No | Enables diffusion "beauty" renders. Without it, previews use the procedural PIL renderer |
+| `HUGGINGFACE_MODELS` | No | Legacy text-generation model list read by `config.py`. Currently unused — nothing calls it |
 | `BEAUTY_HF_MODEL` | No | Text-to-image model (default: `black-forest-labs/FLUX.1-schnell`) |
 | `BEAUTY_CACHE_DIR` | No | Disk cache for rendered images (default: `/tmp/velaris_beauty`) |
 | `TYPE_CLASSIFIER_CHECKPOINT` / `TYPE_CLASSIFIER_CLASSES` | No | Module 1 paths (default: `backend/ml/checkpoints/`) |
@@ -532,7 +538,7 @@ Local-only. The app runs locally — see **Run Locally** above. `velaris.db` is 
 |---|---|---|
 | `POST` | `/api/generate-svg` | Per-view SVG. Parametric CAD first; LLM / static template only as a fallback |
 | `POST` | `/api/cad-svg` | Deterministic CAD SVG plus derived mm parameters |
-| `POST` | `/api/cad-dxf` | Minimal DXF (band + stone circles + label) as base64 |
+| `POST` | `/api/cad-dxf` | 2D front-view DXF of the model geometry (layered, mm units, concept label) as base64, plus filename |
 | `POST` | `/api/render-realistic` | Procedural PIL PNG preview |
 | `POST` | `/api/render-beauty` | Diffusion PNG with PIL fallback; source reported in `X-Render-Source` |
 | `POST` | `/api/beauty-prompt` | The text-to-image prompt that would be used for a spec |
@@ -552,13 +558,14 @@ Local-only. The app runs locally — see **Run Locally** above. `velaris.db` is 
 
 ## Known Limitations
 
-- **CAD output is schematic, not production CAD.** Ring geometry is the most complete. Other types use simplified silhouettes, and the DXF contains only a band circle, a stone circle and a text label at true mm scale. A jeweller still has to model the piece.
+- **CAD output is schematic, not production CAD.** Ring geometry is the most complete. Other types use simplified silhouettes, and the DXF is a 2D front-view export of the same primitives at true mm scale (no solids, no facet geometry) and is labelled not for manufacture. A jeweller still has to model the piece.
 - **Dimensions and weights are estimates.** Stone radius is derived from carat using a round-brilliant approximation, and metal weight uses a flat density heuristic.
 - **Only one motif is illustrated.** Brooches with a phoenix motif get a bespoke drawing; other motifs fall back to the generic starburst.
 - **Module 1 covers four types.** Brooch, Pendant and Tiara are handled by keyword matching because no labeled training data exists for them. Ring is the smallest training class.
 - **Module 2 uses weak labels.** Style labels are inferred from caption keywords, not verified by humans.
 - **Modules 2 and 4 are not connected to the UI or to design generation.** They are exposed only through their own endpoints.
 - **Sketch preprocessing is not in the design flow.** Sketches are sent to the vision-capable LLM as raw images; `/api/sketch-process` is a separate utility.
+- **Two separate LLM chains.** Design generation uses `MODEL_FALLBACK_CHAIN`; the `/api/generate-svg` fallback uses its own hard-coded list, including a `:free` model that may be rate-limited or retired by OpenRouter. It only runs if the CAD engine fails.
 - **Small models in the default chain.** Later entries in the default fallback chain (3B and 7B models) may struggle with the strict JSON schema. If designs fail validation, reorder `MODEL_FALLBACK_CHAIN` toward stronger models.
 - **Local only.** No Dockerfile, no hosted deployment.
 
@@ -571,7 +578,7 @@ Local-only. The app runs locally — see **Run Locally** above. `velaris.db` is 
 | Virtual try-on | Overlay design on a user photo using AR |
 | Similar item shopping | Suggest where to buy something similar |
 | Wire Modules 2 and 4 into the UI | Style hints and "similar designs" panel |
-| Full per-type CAD + richer DXF | Move from schematic views to jeweller-usable geometry |
+| Full per-type CAD + 3D / STEP export | Move from schematic 2D views to jeweller-usable geometry |
 | React Native app | Camera access makes uploads much easier |
 | Barcode scanner | Check if a piece fits your aesthetic before buying |
 | Docker + RDS Postgres | Reproducible deployment; replace SQLite for production-scale concurrent traffic |
